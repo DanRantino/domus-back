@@ -7,6 +7,12 @@ using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var port = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrWhiteSpace(port))
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+}
+
 var authority = builder.Configuration["Authentication:Authority"];
 var audience = builder.Configuration["Authentication:Audience"];
 var connectionString = DatabaseConnection.Resolve(builder.Configuration);
@@ -75,6 +81,15 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<DomusDbContext>();
+    if (db.Database.IsNpgsql())
+    {
+        db.Database.Migrate();
+    }
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -85,6 +100,7 @@ app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 app.MapMeEndpoints();
 
 app.Run();

@@ -1,0 +1,17 @@
+**/.git
+**/.gitignore
+**/.env
+**/.env.*
+!**/.env.example
+**/bin
+**/obj
+**/.dotnet-cli
+**/.vs
+**/.idea
+**/TestResults
+**/coverage
+tests
+openspec
+.cursor
+*.md
+!README.md
