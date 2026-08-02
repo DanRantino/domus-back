@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{C0998571-0F40-424F-9BFF-BD9CF1057DD8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Domus.Api", "src\Domus.Api\Domus.Api.csproj", "{D4D44DC3-D122-4DF6-A7F8-7C4656F7D701}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{13895B43-5D59-40AF-855B-3C50B49F36BD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Domus.Api.Tests", "tests\Domus.Api.Tests\Domus.Api.Tests.csproj", "{D7A31512-F934-4714-B323-E23C1530FBAD}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D4D44DC3-D122-4DF6-A7F8-7C4656F7D701}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D4D44DC3-D122-4DF6-A7F8-7C4656F7D701}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D4D44DC3-D122-4DF6-A7F8-7C4656F7D701}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D4D44DC3-D122-4DF6-A7F8-7C4656F7D701}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D7A31512-F934-4714-B323-E23C1530FBAD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D7A31512-F934-4714-B323-E23C1530FBAD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D7A31512-F934-4714-B323-E23C1530FBAD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D7A31512-F934-4714-B323-E23C1530FBAD}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{D4D44DC3-D122-4DF6-A7F8-7C4656F7D701} = {C0998571-0F40-424F-9BFF-BD9CF1057DD8}
+		{D7A31512-F934-4714-B323-E23C1530FBAD} = {13895B43-5D59-40AF-855B-3C50B49F36BD}
+	EndGlobalSection
+EndGlobal

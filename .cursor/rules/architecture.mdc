@@ -1,0 +1,74 @@
+---
+description: Core architecture rules for Domus
+alwaysApply: true
+---
+
+# Domus Architecture
+
+Domus is a long-lived production-oriented system.
+
+Optimize for clarity, maintainability, consistency, and incremental evolution.
+
+## Principles
+
+* Prefer simple and explicit solutions over clever abstractions.
+* Architectural boundaries must be clear and intentional.
+* Domain behavior must not depend directly on infrastructure concerns.
+* Introduce abstractions only when they solve an existing problem.
+* Prefer composition over framework-specific architecture.
+* Avoid premature distributed-system complexity.
+* Prefer incremental changes over large rewrites.
+* New dependencies must have a clear responsibility and justification.
+* Follow existing project patterns unless there is a concrete reason to change them.
+* When introducing a new pattern, apply it consistently within its scope.
+
+## Architecture
+
+Domus starts as a modular monolith.
+
+Initial conceptual boundaries are:
+
+* Presentation
+* Application
+* Domain
+* Infrastructure
+
+These are boundaries of responsibility, not a requirement to create one project or abstraction per layer.
+
+Do not introduce microservices, CQRS, event buses, generic repositories, or similar patterns without a concrete requirement.
+
+## Identity
+
+Authentication is delegated to an external OIDC Identity Provider.
+
+Logto is the current IdP implementation.
+
+Application code should depend on OIDC concepts rather than Logto-specific behavior whenever practical.
+
+Domus never owns user credentials.
+
+The stable OIDC subject (`sub`) identifies an external identity.
+
+Domain users reference that identity through `identity_id`.
+
+A valid authenticated identity does not automatically imply access to Domus.
+
+Identity data belongs to the IdP.
+
+Domain data belongs to Domus.
+
+Do not duplicate identity information into Domus unless there is a domain or operational requirement for it.
+
+## Decision making
+
+For meaningful architectural decisions:
+
+1. Identify the problem.
+2. Identify relevant constraints.
+3. Consider the simplest viable alternatives.
+4. Evaluate trade-offs.
+5. Choose the easiest solution to understand and maintain.
+6. Document decisions that future developers would otherwise have to rediscover.
+
+
+For product-wide domain context, consult `docs/product/domus-overview.md` when relevant.

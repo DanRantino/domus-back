@@ -1,0 +1,80 @@
+---
+description: Development workflow and context efficiency rules
+alwaysApply: true
+---
+
+# Development Workflow
+
+Use the minimum context required to safely complete the task.
+
+## Context discovery
+
+Before implementing a feature:
+
+1. Read the relevant capability specification.
+2. Read the files directly related to the requested change.
+3. Expand repository exploration only when required.
+4. Do not scan unrelated capabilities for general context.
+
+Do not read the entire repository before making a localized change.
+
+## Specifications
+
+Feature behavior is documented under `specs/<capability>/`.
+
+Specifications describe stable observable behavior and domain invariants.
+
+Specifications should not document implementation details that can be understood directly from the code.
+
+Implementation details belong in code or architectural decision records when the reasoning must be preserved.
+
+## Feature development
+
+For new behavior or changes to existing behavior:
+
+1. Determine the affected capability.
+2. Read its specification.
+3. Update the specification if the expected behavior changes.
+4. Implement the smallest coherent change.
+5. Add or update tests protecting the specified behavior.
+6. Avoid unrelated refactoring.
+
+## Bug fixes
+
+Bug reports, issues, or user prompts are the primary task context for bug fixes.
+
+Read the affected capability specification to determine expected behavior.
+
+If the specification already defines the expected behavior:
+
+* fix the implementation;
+* add or update regression tests;
+* do not create a new specification for the bug.
+
+If expected behavior is missing or ambiguous:
+
+* clarify the desired behavior;
+* update the capability specification;
+* then implement the fix.
+
+## Refactoring
+
+Refactors should preserve externally observable behavior unless explicitly stated otherwise.
+
+Do not modify specifications for implementation-only refactors.
+
+Keep refactors scoped to the problem being solved.
+
+## AI context efficiency
+
+Do not repeat information already available in project rules or capability specifications.
+
+Do not generate large planning documents for small changes.
+
+Prefer references to existing project artifacts over reproducing their contents.
+
+Do not load documentation for libraries unless the task requires details that cannot be reliably inferred from the project or existing knowledge.
+
+When external documentation is required, consult only the relevant section.
+
+Prefer small, focused implementation steps that can be independently validated.

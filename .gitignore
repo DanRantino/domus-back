@@ -1,0 +1,27 @@
+# Build
+bin/
+obj/
+*.user
+*.dll
+*.exe
+*.pdb
+
+# IDE / OS
+.vs/
+.idea/
+*.user
+*.suo
+.DS_Store
+Thumbs.db
+
+# Secrets / local env
+.env
+.env.local
+*.local.json
+
+# .NET CLI home (local install metadata)
+.dotnet-cli/
+
+# Test / coverage
+TestResults/
+coverage/

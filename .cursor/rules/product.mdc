@@ -1,0 +1,24 @@
+---
+
+description: Domus product and domain context
+alwaysApply: false
+------------------
+
+# Domus Product Context
+
+The high-level product and domain direction is documented in:
+
+`docs/product/domus-overview.md`
+
+Read that document when:
+
+* designing a new domain capability;
+* changing relationships between capabilities;
+* making product-level architectural decisions;
+* the task requires understanding how a feature fits into Domus as a whole.
+
+Do not load it for localized implementation tasks that do not require broader product context.
+
+Capability specifications under `openspec/specs/` are the source of truth for behavior already implemented or explicitly specified.
+
+The product overview describes direction and context. It does not imply that every documented capability currently exists.
