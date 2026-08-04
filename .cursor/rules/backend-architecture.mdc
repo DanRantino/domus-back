@@ -1,0 +1,62 @@
+---
+description: Backend code conventions for Domus
+globs:
+  - "**/*.cs"
+alwaysApply: false
+---
+
+# C# conventions
+
+- Prefer explicit and readable code over clever abstractions.
+- Use async APIs for I/O operations.
+- Propagate `CancellationToken` through async application and infrastructure operations where relevant.
+- Prefer constructor injection.
+- Keep classes focused on one responsibility.
+- Avoid static service locators.
+- Avoid hidden side effects.
+- Prefer domain-specific names over generic names such as `Manager`, `Helper`, or `Processor`.
+
+## Application services
+
+Application services should represent clear use cases or cohesive capability behavior.
+
+Prefer:
+
+`HouseService.CreateAsync(...)`
+
+over abstractions whose purpose is unclear.
+
+If a service becomes responsible for unrelated lifecycle operations, split it by meaningful responsibility rather than by arbitrary technical pattern.
+
+## Results and errors
+
+Use the existing `AppResult` / `ErrorCodes` conventions.
+
+Application should return application-level failures.
+
+API is responsible for mapping those failures to HTTP semantics.
+
+Do not return HTTP status codes from Application.
+
+## Persistence
+
+Do not expose EF entities or `DbContext` outside Infrastructure unless the existing architecture explicitly requires it.
+
+Keep EF-specific configuration in Infrastructure.
+
+Use transactions when a use case requires multiple writes to succeed or fail atomically.
+
+## Tests
+
+Prefer testing observable behavior.
+
+Domain rules should be testable without HTTP or database infrastructure where practical.
+
+API integration tests should verify:
+- authentication;
+- request contract;
+- status code;
+- response contract;
+- important persistence outcome.
+
+Do not over-test framework behavior.

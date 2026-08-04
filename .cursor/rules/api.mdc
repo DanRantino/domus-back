@@ -1,0 +1,18 @@
+---
+description: HTTP API conventions for Domus API
+globs:
+  - "**/*Controller.cs"
+alwaysApply: false
+---
+
+# HTTP API Conventions
+
+- Use ASP.NET Core Controllers rather than Minimal APIs.
+- Controllers inherit from `ControllerBase`.
+- Use `[ApiController]`.
+- Use attribute routing with `[HttpGet]`, `[HttpPost]`, `[HttpDelete]`, etc.
+- Prefer typed `ActionResult<T>` responses when applicable.
+- Expose meaningful response types/status codes through OpenAPI metadata.
+- Keep business rules out of controllers.
+- Async HTTP operations should accept `CancellationToken` when appropriate.
+- Before introducing a new controller pattern, inspect an existing controller and follow the established convention.

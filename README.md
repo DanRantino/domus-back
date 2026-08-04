@@ -1,6 +1,6 @@
 # Domus API
 
-Backend .NET da Domus. Primeiro marco: capability **Users** + validação JWT Logto + `GET/POST /me`.
+Backend .NET da Domus. Monólito modular: **Domain / Application / Infrastructure / Api**. Capability inicial: **Users** + JWT Logto + `GET/POST /me`.
 
 ## Requisitos
 
@@ -34,18 +34,38 @@ Se precisar aplicar migrations manualmente:
 
 ```bash
 dotnet tool install --global dotnet-ef --version 8.0.19
-dotnet ef database update --project src/Domus.Api
+dotnet ef database update \
+  --project src/Domus.Infrastructure \
+  --startup-project src/Domus.Api
 ```
+
+## Envelope de resposta (produto)
+
+Endpoints de produto usam envelope JSON (snake_case):
+
+```json
+{ "success": true, "data": { }, "error": null }
+{ "success": false, "data": null, "error": { "code": "…", "message": "…" } }
+```
+
+**BREAKING para o Domus Web:** o body de sucesso de `/me` usa envelope (`data`) e a representação do user inclui `full_name`, `settings` (`theme`, `notifications` por categoria) e `houses`. Erros de produto usam `error.code` (`not_provisioned`, `already_exists`, `validation_error`). Status HTTP continuam significativos.
+
+Troca de senha **não** é endpoint Domus — o client redireciona para a experiência de conta do IdP (Logto).
+
+Health checks **não** usam o envelope de produto.
 
 ## Endpoints
 
 | Método | Path | Auth | Resultado |
 |--------|------|------|-----------|
-| `GET` | `/health` | não | `200` `{ "status": "ok" }` |
-| `GET` | `/me` | Bearer JWT | `401` / `403` (não provisionado) / `200` `{ id, identity_id }` |
-| `POST` | `/me` | Bearer JWT | `201` cria User do `sub` / `409` já existe / `401` |
+| `GET` | `/health/live` | não | `200` se o processo está vivo |
+| `GET` | `/health/ready` | não | `200` se o Postgres está alcançável; caso contrário não-sucesso |
+| `GET` | `/me` | Bearer JWT | `401` / `403` + `not_provisioned` / `200` + envelope com perfil, settings e houses |
+| `POST` | `/me` | Bearer JWT | `201` + envelope (defaults) / `409` + `already_exists` / `401` |
+| `PATCH` | `/me` | Bearer JWT | atualiza `full_name` (opcional; null/"" limpa) |
+| `PATCH` | `/me/settings` | Bearer JWT | atualiza `theme` e/ou `notifications` (merge parcial); `400` + `validation_error` se theme inválido |
 
-`GET /me` nunca provisiona. `POST /me` ignora body — `identity_id` vem só do token.
+`GET /me` nunca provisiona. `POST /me` ignora body — `identity_id` vem só do token. Settings default no provisionamento: `theme=system`, notificações `daily_tasks` / `expenses` / `family_chat` = `true`.
 
 ## Testes
 
@@ -57,9 +77,11 @@ dotnet test Domus.sln
 
 Railpack não suporta .NET: o build usa o [`Dockerfile`](Dockerfile) na raiz.
 
+Logs da aplicação vão para **stdout** (JSON console) e aparecem no log do Railway. Não há stack de logging externo neste marco.
+
 ### Serviço
 
-Configuração de build/deploy: [`railway.toml`](railway.toml) (Dockerfile + healthcheck `/health`).
+Configuração de build/deploy: [`railway.toml`](railway.toml) (Dockerfile + healthcheck `/health/live`).
 
 No diretório deste repo (projeto já linkado ao Postgres):
 
@@ -98,12 +120,13 @@ Não defina `ASPNETCORE_URLS=http://localhost:3001` no Railway. A app lê `PORT`
 ### Verificação
 
 ```bash
-curl -s https://<api-domain>/health
+curl -s https://<api-domain>/health/live
+curl -s https://<api-domain>/health/ready
 curl -s -o /dev/null -w '%{http_code}\n' https://<api-domain>/me   # esperado: 401
 ```
 
-No front, aponte `VITE_DOMUS_API_BASE_URL` para o domínio da API.
+No front, aponte `VITE_DOMUS_API_BASE_URL` para o domínio da API e ajuste o parse de `/me` para o envelope (`data` / `error.code`).
 
 ## Follow-up no frontend
 
-O front orquestra self-serve (`GET /me` → 403 → `POST /me` → `GET /me`). Detalhes no repositório `front`.
+O front orquestra self-serve (`GET /me` → 403 → `POST /me` → `GET /me`) e precisa ler o envelope. Detalhes no repositório `front`.

@@ -1,74 +1,46 @@
 ---
-description: Core architecture rules for Domus
+description: Core backend architecture conventions for Domus API
 alwaysApply: true
 ---
 
-# Domus Architecture
+# Domus API Architecture
 
-Domus is a long-lived production-oriented system.
+The shared product specifications live in the sibling repository:
 
-Optimize for clarity, maintainability, consistency, and incremental evolution.
+`../domus-specs`
+
+Product specifications define WHAT Domus should do.
+This repository defines HOW backend behavior is implemented.
 
 ## Principles
 
-* Prefer simple and explicit solutions over clever abstractions.
-* Architectural boundaries must be clear and intentional.
-* Domain behavior must not depend directly on infrastructure concerns.
-* Introduce abstractions only when they solve an existing problem.
-* Prefer composition over framework-specific architecture.
-* Avoid premature distributed-system complexity.
-* Prefer incremental changes over large rewrites.
-* New dependencies must have a clear responsibility and justification.
-* Follow existing project patterns unless there is a concrete reason to change them.
-* When introducing a new pattern, apply it consistently within its scope.
+- Prefer simple, explicit implementations over speculative abstractions.
+- Follow existing project patterns before introducing new ones.
+- Keep HTTP concerns separate from business/domain behavior.
+- Do not introduce architectural patterns unless the current problem requires them.
+- Treat product behavior from the referenced OpenSpec change as authoritative.
+- If the specification leaves an important product decision ambiguous, stop and surface the ambiguity rather than inventing behavior.
 
-## Architecture
+## Layer boundaries
 
-Domus starts as a modular monolith.
+- **Api** owns HTTP concerns (controllers, request/response contracts, status mapping).
+- **Application** owns use cases and defines infrastructure boundaries when needed.
+- **Domain** owns business concepts and invariants.
+- **Infrastructure** owns EF Core, persistence, migrations, and implementations of Application interfaces.
+- EF Core must remain isolated in Infrastructure; Application depends only on its interfaces/contracts.
 
-Initial conceptual boundaries are:
+## Application abstractions
 
-* Presentation
-* Application
-* Domain
-* Infrastructure
+- Before creating a new Application abstraction, inspect whether an existing Application boundary already represents that responsibility.
+- Do not create parallel abstractions for the same persistence capability.
+- Prefer extending or reusing an existing explicit boundary when it remains cohesive.
+- Interfaces should represent real Application-to-Infrastructure boundaries, not be created mechanically per use case.
 
-These are boundaries of responsibility, not a requirement to create one project or abstraction per layer.
+## Context discipline
 
-Do not introduce microservices, CQRS, event buses, generic repositories, or similar patterns without a concrete requirement.
+When working from a shared OpenSpec change:
 
-## Identity
-
-Authentication is delegated to an external OIDC Identity Provider.
-
-Logto is the current IdP implementation.
-
-Application code should depend on OIDC concepts rather than Logto-specific behavior whenever practical.
-
-Domus never owns user credentials.
-
-The stable OIDC subject (`sub`) identifies an external identity.
-
-Domain users reference that identity through `identity_id`.
-
-A valid authenticated identity does not automatically imply access to Domus.
-
-Identity data belongs to the IdP.
-
-Domain data belongs to Domus.
-
-Do not duplicate identity information into Domus unless there is a domain or operational requirement for it.
-
-## Decision making
-
-For meaningful architectural decisions:
-
-1. Identify the problem.
-2. Identify relevant constraints.
-3. Consider the simplest viable alternatives.
-4. Evaluate trade-offs.
-5. Choose the easiest solution to understand and maintain.
-6. Document decisions that future developers would otherwise have to rediscover.
-
-
-For product-wide domain context, consult `docs/product/domus-overview.md` when relevant.
+1. Read only the referenced change and directly referenced specs.
+2. Do not scan unrelated OpenSpec changes.
+3. Inspect only backend code relevant to the current implementation step.
+4. Prefer an existing implementation as the concrete reference when one exists.

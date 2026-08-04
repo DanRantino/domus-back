@@ -1,10 +1,13 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Text;
 using System.Text.Json;
-using Domus.Api.Features.Users;
+using Domus.Api.Contracts.Users;
+using Domus.Api.Http;
 using Domus.Api.Tests.Support;
+using Domus.Domain.Houses;
+using Domus.Domain.Users;
+using Domus.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Domus.Api.Tests;
@@ -30,100 +33,64 @@ public sealed class MeEndpointTests : IAsyncLifetime
     {
         var client = _factory.CreateClient();
 
-        var response = await client.GetAsync("/me");
+        var response = await client.GetAsync("/users/me");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     [Fact]
-    public async Task GetMe_AuthenticatedButUnprovisioned_Returns403()
+    public async Task GetMe_AuthenticatedButUnprovisioned_Returns403Envelope()
     {
         var client = CreateAuthenticatedClient("identity-unprovisioned");
 
-        var response = await client.GetAsync("/me");
+        var response = await client.GetAsync("/users/me");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ApiEnvelope<MeResponse>>(_jsonOptions);
+        Assert.NotNull(body);
+        Assert.False(body.Success);
+        Assert.Null(body.Data);
+        Assert.NotNull(body.Error);
+        Assert.Equal("not_provisioned", body.Error.Code);
         Assert.Equal(0, await CountUsersAsync());
     }
 
     [Fact]
-    public async Task GetMe_Provisioned_Returns200WithUser()
+    public async Task GetMe_Provisioned_Returns200EnvelopeWithIdAndEmptyHouses()
     {
         const string identityId = "identity-provisioned";
         var user = await SeedUserAsync(identityId);
         var client = CreateAuthenticatedClient(identityId);
 
-        var response = await client.GetAsync("/me");
+        var response = await client.GetAsync("/users/me");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<UserResponse>(_jsonOptions);
+        var body = await response.Content.ReadFromJsonAsync<ApiEnvelope<MeResponse>>(_jsonOptions);
         Assert.NotNull(body);
-        Assert.Equal(user.Id, body.Id);
-        Assert.Equal(identityId, body.IdentityId);
+        Assert.True(body.Success);
+        Assert.Null(body.Error);
+        Assert.NotNull(body.Data);
+        Assert.Equal(user.Id, body.Data.Id);
+        Assert.Empty(body.Data.Houses);
     }
 
     [Fact]
-    public async Task PostMe_WithoutToken_Returns401()
+    public async Task GetMe_ProvisionedWithMembership_ReturnsHouses()
     {
-        var client = _factory.CreateClient();
-
-        var response = await client.PostAsync("/me", content: null);
-
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task PostMe_FirstCall_Returns201AndPersistsUser()
-    {
-        const string identityId = "identity-new";
+        const string identityId = "identity-with-house";
+        var user = await SeedUserAsync(identityId);
+        var house = await SeedHouseWithMembershipAsync(user.Id, "Casa Centro", HouseRoles.Admin);
         var client = CreateAuthenticatedClient(identityId);
 
-        var response = await client.PostAsync("/me", content: null);
+        var response = await client.GetAsync("/users/me");
 
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<UserResponse>(_jsonOptions);
-        Assert.NotNull(body);
-        Assert.Equal(identityId, body.IdentityId);
-        Assert.NotEqual(Guid.Empty, body.Id);
-
-        using var scope = _factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<DomusDbContext>();
-        var stored = Assert.Single(db.Users.Where(u => u.IdentityId == identityId).ToList());
-        Assert.Equal(body.Id, stored.Id);
-    }
-
-    [Fact]
-    public async Task PostMe_SecondCall_Returns409()
-    {
-        const string identityId = "identity-duplicate";
-        var client = CreateAuthenticatedClient(identityId);
-
-        var first = await client.PostAsync("/me", content: null);
-        Assert.Equal(HttpStatusCode.Created, first.StatusCode);
-
-        var second = await client.PostAsync("/me", content: null);
-        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
-        Assert.Equal(1, await CountUsersAsync(identityId));
-    }
-
-    [Fact]
-    public async Task PostMe_IgnoresForgedIdentityIdInBody()
-    {
-        const string tokenSub = "identity-from-token";
-        var client = CreateAuthenticatedClient(tokenSub);
-        using var content = new StringContent(
-            """{"identity_id":"forged-identity"}""",
-            Encoding.UTF8,
-            "application/json");
-
-        var response = await client.PostAsync("/me", content);
-
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<UserResponse>(_jsonOptions);
-        Assert.NotNull(body);
-        Assert.Equal(tokenSub, body.IdentityId);
-        Assert.Equal(0, await CountUsersAsync("forged-identity"));
-        Assert.Equal(1, await CountUsersAsync(tokenSub));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ApiEnvelope<MeResponse>>(_jsonOptions);
+        Assert.NotNull(body?.Data);
+        var membership = Assert.Single(body.Data.Houses);
+        Assert.Equal(house.Id, membership.Id);
+        Assert.Equal("Casa Centro", membership.Name);
+        Assert.Equal("admin", membership.Role);
     }
 
     private HttpClient CreateAuthenticatedClient(string sub)
@@ -138,19 +105,40 @@ public sealed class MeEndpointTests : IAsyncLifetime
     {
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<DomusDbContext>();
-        var user = new User { Id = Guid.NewGuid(), IdentityId = identityId };
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            IdentityId = identityId,
+            Theme = UserThemes.System,
+            NotifyDailyTasks = true,
+            NotifyExpenses = true,
+            NotifyFamilyChat = true,
+        };
         db.Users.Add(user);
         await db.SaveChangesAsync();
         return user;
     }
 
-    private Task<int> CountUsersAsync(string? identityId = null)
+    private async Task<House> SeedHouseWithMembershipAsync(Guid userId, string name, string role)
     {
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<DomusDbContext>();
-        var count = identityId is null
-            ? db.Users.Count()
-            : db.Users.Count(u => u.IdentityId == identityId);
-        return Task.FromResult(count);
+        var house = new House { Id = Guid.NewGuid(), Name = name };
+        db.Houses.Add(house);
+        db.HouseMemberships.Add(new HouseMembership
+        {
+            UserId = userId,
+            HouseId = house.Id,
+            Role = role,
+        });
+        await db.SaveChangesAsync();
+        return house;
+    }
+
+    private Task<int> CountUsersAsync()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<DomusDbContext>();
+        return Task.FromResult(db.Users.Count());
     }
 }
