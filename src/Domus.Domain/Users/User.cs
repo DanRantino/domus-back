@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Domus.Domain.Users;
 
 public sealed class User
@@ -18,6 +20,7 @@ public sealed class User
 
     private User() {}
 
+    [SetsRequiredMembers]
     public User(Guid id, string identityId, string? fullName)
     {
         Id = id;
