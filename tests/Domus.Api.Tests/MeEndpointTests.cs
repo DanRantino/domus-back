@@ -105,17 +105,15 @@ public sealed class MeEndpointTests : IAsyncLifetime
     {
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<DomusDbContext>();
-        var user = new User
-        {
-            Id = Guid.NewGuid(),
-            IdentityId = identityId,
-            Theme = UserThemes.System,
-            NotifyDailyTasks = true,
-            NotifyExpenses = true,
-            NotifyFamilyChat = true,
-        };
+
+        var user = new User(
+            Guid.NewGuid(),
+            identityId,
+            null);
+
         db.Users.Add(user);
         await db.SaveChangesAsync();
+
         return user;
     }
 
