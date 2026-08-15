@@ -45,9 +45,10 @@ Porta local: `http://localhost:3001` (CORS permite `http://localhost:3000`).
 ## Executar
 
 ```bash
-export $(grep -v '^#' .env | xargs)   # ou exporte as vars manualmente
 dotnet run --project src/Domus.Api
 ```
+
+O `.env` na raiz do repositório é carregado automaticamente se existir. Variáveis já definidas no ambiente não são sobrescritas.
 
 Migrations rodam automaticamente no startup quando o provider é PostgreSQL.
 
@@ -58,7 +59,32 @@ dotnet ef database update \
  --project src/Domus.Infrastructure \
  --startup-project src/Domus.Api
 
-````
+## Seed de desenvolvimento
+
+Garante usuários no Logto, os mesmos usuários no Postgres, as casas e os vínculos (`house_memberships`). Não sobe o servidor HTTP.
+
+```bash
+dotnet run --project src/Domus.Api -- --seed
+```
+
+O `--` entrega `--seed` para a aplicação. Além do banco (`DATABASE_URL` ou `ConnectionStrings__Database`), o comando precisa das variáveis M2M em [`.env.example`](.env.example):
+
+- `DevelopmentSeed__LogtoEndpoint`
+- `DevelopmentSeed__ManagementApiResource`
+- `DevelopmentSeed__ClientId`
+- `DevelopmentSeed__ClientSecret`
+
+O que o seed garante:
+
+| Casa            | Email               | Papel    |
+| --------------- | ------------------- | -------- |
+| Casa da Família | `dev1@domus.local`  | `admin`  |
+| Casa da Família | `dev2@domus.local`  | `member` |
+| Casa da Família | `dev3@domus.local`  | `member` |
+| Casa da Família | `dev4@domus.local`  | `member` |
+| Casa do Admin   | `dev1@domus.local`  | `admin`  |
+
+Pode rodar de novo: não duplica usuários, casas nem memberships, e não altera linhas que já existem. No Logto, só cria quem falta e só atualiza se `name` ou `username` estiverem diferentes do catálogo.
 
 ## Envelope de resposta (produto)
 

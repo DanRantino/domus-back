@@ -34,7 +34,7 @@ public static class DatabaseConnection
             Username = Uri.UnescapeDataString(userInfo[0]),
             Password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty,
             Database = uri.AbsolutePath.TrimStart('/'),
-            SslMode = SslMode.Require,
+            SslMode = SslMode.Prefer,
         };
 
         return builder.ConnectionString;
