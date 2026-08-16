@@ -10,7 +10,7 @@ public static class DatabaseConnection
         var connectionString = configuration.GetConnectionString("Database");
         if (!string.IsNullOrWhiteSpace(connectionString))
         {
-            return connectionString;
+            return Normalize(connectionString);
         }
 
         var databaseUrl = configuration["DATABASE_URL"];
@@ -19,12 +19,17 @@ public static class DatabaseConnection
             return string.Empty;
         }
 
-        return ConvertDatabaseUrl(databaseUrl);
+        return Normalize(databaseUrl);
     }
 
-    private static string ConvertDatabaseUrl(string databaseUrl)
+    public static string Normalize(string connectionString)
     {
-        var uri = new Uri(databaseUrl);
+        if (!IsPostgresUrl(connectionString))
+        {
+            return connectionString;
+        }
+
+        var uri = new Uri(connectionString);
         var userInfo = uri.UserInfo.Split(':', 2);
 
         var builder = new NpgsqlConnectionStringBuilder
@@ -39,4 +44,8 @@ public static class DatabaseConnection
 
         return builder.ConnectionString;
     }
+
+    private static bool IsPostgresUrl(string value) =>
+        value.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase)
+        || value.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase);
 }

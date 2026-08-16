@@ -42,6 +42,16 @@ Copie [`.env.example`](.env.example) para `.env` e preencha:
 
 Porta local: `http://localhost:3001` (CORS permite `http://localhost:3000`).
 
+O Railway CLI vem no Dev Container. Secrets de serviço (M2M, audience, `DATABASE_URL` de preprod/prod) ficam no Railway — não no `.env` versionado. Depois de `railway login` e `railway link` neste repositório:
+
+```bash
+railway variable list --service Domus.Api
+railway variable list --service Domus.Api --kv
+
+# Secret sem aparecer no histórico do shell
+printf '%s' "$SECRET" | railway variable set DevelopmentSeed__ClientSecret --stdin --service Domus.Api
+```
+
 ## Executar
 
 ```bash
@@ -137,14 +147,15 @@ No diretório deste repo (projeto já linkado ao Postgres):
 railway add --service Domus.Api
 railway service Domus.Api   # ou: railway link --service Domus.Api
 
-railway variables set \
+railway variable set \
   ASPNETCORE_ENVIRONMENT=Production \
   Authentication__Authority=https://logto-auth-preprod.up.railway.app/oidc \
   Authentication__Audience=<seu-api-resource> \
-  Cors__Origins__0=http://localhost:3000
+  Cors__Origins__0=http://localhost:3000 \
+  --service Domus.Api
 
 # DATABASE_URL privada do Postgres (ajuste o nome do serviço se for outro)
-railway variables set DATABASE_URL='${{Postgres.DATABASE_URL}}'
+railway variable set DATABASE_URL='${{Postgres.DATABASE_URL}}' --service Domus.Api
 
 railway domain
 railway up

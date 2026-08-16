@@ -19,6 +19,9 @@ Thumbs.db
 .env.local
 *.local.json
 
+# Railway CLI local link (credentials live in ~/.railway)
+.railway/
+
 # .NET CLI home (local install metadata)
 .dotnet-cli/
 
