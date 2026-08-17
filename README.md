@@ -5,8 +5,8 @@ Backend .NET da Domus. Monólito modular: **Domain / Application / Infrastructur
 ## Requisitos
 
 - .NET SDK 10.0.302
-- PostgreSQL 16
-- Dev Container do Domus
+- PostgreSQL 16 (Compose local neste repo)
+- Railway CLI autenticada (`domus-api` nos environments `local` e `development`)
 - API resource configurado no Logto
 
 ## Migrations
@@ -29,18 +29,65 @@ dotnet ef database update \
 
 ```
 
-## Configuração
+## Perfis de ambiente
 
-Copie [`.env.example`](.env.example) para `.env` e preencha:
+Um único modelo de aplicação. A seleção de perfil é configuração (Railway + arquivos locais), não ramificação de código.
 
-| Variável                                        | Descrição                                                                 |
-| ----------------------------------------------- | ------------------------------------------------------------------------- |
-| `Authentication__Authority`                     | Issuer OIDC Logto (`…/oidc`)                                              |
-| `Authentication__Audience`                      | API resource / `aud` (mesmo valor que `VITE_LOGTO_API_RESOURCE` no front) |
-| `DATABASE_URL` ou `ConnectionStrings__Database` | Postgres Railway                                                          |
-| `Cors__Origins__0`                              | Origem do SPA (default local: `http://localhost:3000`)                    |
+Neste repositório o serviço Railway é **`domus-api`**. O frontend correspondente é **`domus-web`**.
 
-Porta local: `http://localhost:3001` (CORS permite `http://localhost:3000`).
+| Perfil Railway | Onde a API roda | Postgres | Como obter as variáveis |
+| -------------- | --------------- | -------- | ----------------------- |
+| `local` | máquina do desenvolvedor | Docker Compose deste repo | `railway variable list --service domus-api --environment local --kv > .env` |
+| `development` | Railway Development | Postgres do environment `development` | `railway variable list --service domus-api --environment development --kv > .env` |
+
+Production é um environment Railway separado e fica fora deste fluxo.
+
+### Postgres local
+
+```bash
+docker compose -f compose.yaml up -d
+```
+
+| Campo | Valor |
+| ----- | ----- |
+| Imagem | `postgres:16` |
+| Host / porta | `127.0.0.1:5432` |
+| Database / user / password | `domus` / `domus` / `domus` |
+| URL | `postgresql://domus:domus@127.0.0.1:5432/domus` |
+
+Volume nomeado: `domus-postgres-data`. Parar: `docker compose -f compose.yaml down`. Apagar estado: `docker compose -f compose.yaml down -v`.
+
+### Puxar `.env` do Railway
+
+Na raiz deste repo (já autenticado na CLI):
+
+```bash
+railway link --project <projeto> --environment local --service domus-api
+railway variable list --service domus-api --environment local --kv > .env
+cp .env.local.example .env.local
+```
+
+Para o perfil hospedado, troque `--environment development`. Não commite `.env` nem `.env.local`.
+
+[`.env.example`](.env.example) lista só os nomes das chaves. Não copie valores de production/preprod para o repositório.
+
+A API carrega `.env` e depois `.env.local` (este último ganha nas chaves que ainda não estavam no processo). Variáveis já definidas no ambiente do processo não são sobrescritas. `.env.local` é o override deliberado do Postgres Docker sobre o `DATABASE_URL` puxado do Railway.
+
+Sem gravar arquivo:
+
+```bash
+railway run --service domus-api --environment local -- dotnet run --project src/Domus.Api
+```
+
+| Variável | Descrição |
+| -------- | --------- |
+| `Authentication__Authority` | Issuer OIDC Logto (`…/oidc`) |
+| `Authentication__Audience` | API resource / `aud` (mesmo valor que `VITE_LOGTO_API_RESOURCE` no `domus-web`) |
+| `DATABASE_URL` ou `ConnectionStrings__Database` | Postgres. No perfil `local`, sobrescrever com a URL do Compose |
+| `Cors__Origins__0` | Origem do SPA (default: `http://localhost:3000`) |
+| `DevelopmentSeed__*` | M2M Logto usado só por `--seed` |
+
+Porta local: `http://localhost:3001`. No Railway a app lê `PORT` e escuta em `0.0.0.0:$PORT`. Não defina `ASPNETCORE_URLS=http://localhost:3001` no environment `development`.
 
 ## Executar
 
@@ -48,16 +95,16 @@ Porta local: `http://localhost:3001` (CORS permite `http://localhost:3000`).
 dotnet run --project src/Domus.Api
 ```
 
-O `.env` na raiz do repositório é carregado automaticamente se existir. Variáveis já definidas no ambiente não são sobrescritas.
-
 Migrations rodam automaticamente no startup quando o provider é PostgreSQL.
 
 Se precisar aplicar migrations manualmente:
 
-ConnectionStrings\_\_Database='<connection-string>' \
+```bash
+ConnectionStrings__Database='<connection-string>' \
 dotnet ef database update \
- --project src/Domus.Infrastructure \
- --startup-project src/Domus.Api
+  --project src/Domus.Infrastructure \
+  --startup-project src/Domus.Api
+```
 
 ## Seed de desenvolvimento
 
@@ -67,7 +114,7 @@ Garante usuários no Logto, os mesmos usuários no Postgres, as casas e os vínc
 dotnet run --project src/Domus.Api -- --seed
 ```
 
-O `--` entrega `--seed` para a aplicação. Além do banco (`DATABASE_URL` ou `ConnectionStrings__Database`), o comando precisa das variáveis M2M em [`.env.example`](.env.example):
+O `--` entrega `--seed` para a aplicação. Além do banco (`DATABASE_URL` ou `ConnectionStrings__Database`), o comando precisa das variáveis M2M puxadas do Railway (`DevelopmentSeed__*`):
 
 - `DevelopmentSeed__LogtoEndpoint`
 - `DevelopmentSeed__ManagementApiResource`
@@ -93,7 +140,7 @@ Endpoints de produto usam envelope JSON (snake_case):
 ```json
 { "success": true, "data": { }, "error": null }
 { "success": false, "data": null, "error": { "code": "…", "message": "…" } }
-````
+```
 
 **BREAKING para o Domus Web:** o body de sucesso de `/me` usa envelope (`data`) e a representação do user inclui `full_name`, `settings` (`theme`, `notifications` por categoria) e `houses`. Erros de produto usam `error.code` (`not_provisioned`, `already_exists`, `validation_error`). Status HTTP continuam significativos.
 
@@ -120,49 +167,20 @@ Health checks **não** usam o envelope de produto.
 dotnet test Domus.sln
 ```
 
-## Deploy no Railway
+## Railway (`domus-api`)
 
-Railpack não suporta .NET: o build usa o [`Dockerfile`](Dockerfile) na raiz.
+Railpack não suporta .NET: o build usa o [`Dockerfile`](Dockerfile) na raiz (SDK/runtime **10.0**). [`railway.toml`](railway.toml) define Dockerfile + healthcheck `/health/live`.
 
-Logs da aplicação vão para **stdout** (JSON console) e aparecem no log do Railway. Não há stack de logging externo neste marco.
+Logs da aplicação vão para **stdout** (JSON console no environment hospedado) e aparecem no log do Railway.
 
-### Serviço
-
-Configuração de build/deploy: [`railway.toml`](railway.toml) (Dockerfile + healthcheck `/health/live`).
-
-No diretório deste repo (projeto já linkado ao Postgres):
+O environment **`development`** é o perfil Railway Development. As variáveis já existem nesse environment; puxe-as com a CLI em vez de copiar secrets para o git.
 
 ```bash
-# Criar serviço vazio e fazer deploy do diretório atual
-railway add --service Domus.Api
-railway service Domus.Api   # ou: railway link --service Domus.Api
-
-railway variables set \
-  ASPNETCORE_ENVIRONMENT=Production \
-  Authentication__Authority=https://logto-auth-preprod.up.railway.app/oidc \
-  Authentication__Audience=<seu-api-resource> \
-  Cors__Origins__0=http://localhost:3000
-
-# DATABASE_URL privada do Postgres (ajuste o nome do serviço se for outro)
-railway variables set DATABASE_URL='${{Postgres.DATABASE_URL}}'
-
-railway domain
+railway link --project <projeto> --environment development --service domus-api
 railway up
 ```
 
-Alternativa no dashboard: New Service → GitHub `DanRantino/domus-back` → o `Dockerfile` / `railway.toml` são detectados automaticamente.
-
-### Variáveis do serviço API
-
-| Variável                    | Valor                                                                                             |
-| --------------------------- | ------------------------------------------------------------------------------------------------- |
-| `ASPNETCORE_ENVIRONMENT`    | `Production`                                                                                      |
-| `Authentication__Authority` | Issuer Logto (ex. `https://logto-auth-preprod.up.railway.app/oidc`)                               |
-| `Authentication__Audience`  | API resource / `aud` (igual ao front)                                                             |
-| `DATABASE_URL`              | Referência privada `${{Postgres.DATABASE_URL}}` (não use a URL pública do TCP proxy)              |
-| `Cors__Origins__0`          | Origem do front em produção (ex. `https://….up.railway.app` ou `http://localhost:3000` em testes) |
-
-Não defina `ASPNETCORE_URLS=http://localhost:3001` no Railway. A app lê `PORT` e escuta em `0.0.0.0:$PORT`.
+`DATABASE_URL` no `development` deve ser a referência privada do Postgres daquele environment (não a URL pública do TCP proxy). `ASPNETCORE_ENVIRONMENT` nesse perfil não é Production.
 
 ### Verificação
 
@@ -172,8 +190,8 @@ curl -s https://<api-domain>/health/ready
 curl -s -o /dev/null -w '%{http_code}\n' https://<api-domain>/me   # esperado: 401
 ```
 
-No front, aponte `VITE_DOMUS_API_BASE_URL` para o domínio da API e ajuste o parse de `/me` para o envelope (`data` / `error.code`).
+No `domus-web`, aponte a base URL da API para o domínio correspondente e leia o envelope (`data` / `error.code`).
 
 ## Follow-up no frontend
 
-O front orquestra self-serve (`GET /me` → 403 → `POST /me` → `GET /me`) e precisa ler o envelope. Detalhes no repositório `front`.
+O `domus-web` orquestra self-serve (`GET /me` → 403 → `POST /me` → `GET /me`) e precisa ler o envelope.

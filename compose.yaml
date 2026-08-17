@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: domus-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: domus
+      POSTGRES_USER: domus
+      POSTGRES_PASSWORD: domus
+    volumes:
+      - domus-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U domus -d domus"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  domus-postgres-data:

@@ -19,6 +19,9 @@ Thumbs.db
 .env.local
 *.local.json
 
+# Railway CLI link state
+.railway/
+
 # .NET CLI home (local install metadata)
 .dotnet-cli/
 

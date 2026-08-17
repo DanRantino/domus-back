@@ -10,7 +10,7 @@
             "request": "launch",
             "preLaunchTask": "build",
             // Se tiver alterado as estruturas de destino, certifique-se de atualizar o caminho do programa.
-            "program": "${workspaceFolder}/src/Domus.Api/bin/Debug/net8.0/Domus.Api.dll",
+            "program": "${workspaceFolder}/src/Domus.Api/bin/Debug/net10.0/Domus.Api.dll",
             "args": [],
             "cwd": "${workspaceFolder}/src/Domus.Api",
             "stopAtEntry": false,

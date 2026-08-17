@@ -24,10 +24,24 @@ internal static class DotEnvLoader
         var directory = startDirectory;
         while (!string.IsNullOrEmpty(directory))
         {
-            var path = Path.Combine(directory, ".env");
-            if (File.Exists(path))
+            var envPath = Path.Combine(directory, ".env");
+            var localPath = Path.Combine(directory, ".env.local");
+            var hasEnv = File.Exists(envPath);
+            var hasLocal = File.Exists(localPath);
+
+            if (hasEnv || hasLocal)
             {
-                Apply(path);
+                var preexistingKeys = SnapshotProcessKeys();
+                if (hasEnv)
+                {
+                    Apply(envPath, preexistingKeys);
+                }
+
+                if (hasLocal)
+                {
+                    Apply(localPath, preexistingKeys);
+                }
+
                 return true;
             }
 
@@ -37,7 +51,21 @@ internal static class DotEnvLoader
         return false;
     }
 
-    private static void Apply(string path)
+    private static HashSet<string> SnapshotProcessKeys()
+    {
+        var keys = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var key in Environment.GetEnvironmentVariables().Keys)
+        {
+            if (key is string name)
+            {
+                keys.Add(name);
+            }
+        }
+
+        return keys;
+    }
+
+    private static void Apply(string path, HashSet<string> preexistingKeys)
     {
         foreach (var rawLine in File.ReadAllLines(path))
         {
@@ -46,7 +74,7 @@ internal static class DotEnvLoader
                 continue;
             }
 
-            if (Environment.GetEnvironmentVariable(key) is not null)
+            if (preexistingKeys.Contains(key))
             {
                 continue;
             }
