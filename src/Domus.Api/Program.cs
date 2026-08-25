@@ -3,11 +3,10 @@ using Domus.Api.Http;
 using Domus.Application;
 using Domus.Infrastructure;
 using Domus.Infrastructure.Persistence;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.HttpOverrides;
 using Domus.Api.Configuration;
 using Domus.Infrastructure.DevelopmentSeed;
 using Domus.Infrastructure.Identity;
@@ -48,6 +47,8 @@ if (!isSeed)
 
     var authority = builder.Configuration["Authentication:Authority"];
     var audience = builder.Configuration["Authentication:Audience"];
+    var clientId = builder.Configuration["Authentication:ClientId"];
+    var clientSecret = builder.Configuration["Authentication:ClientSecret"];
     var connectionString = DatabaseConnection.Resolve(builder.Configuration);
     var corsOrigins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>()
         ?? ["http://localhost:3000"];
@@ -62,6 +63,18 @@ if (!isSeed)
     {
         throw new InvalidOperationException(
             "Missing required configuration: Authentication:Audience (env Authentication__Audience).");
+    }
+
+    if (string.IsNullOrWhiteSpace(clientId))
+    {
+        throw new InvalidOperationException(
+            "Missing required configuration: Authentication:ClientId (env Authentication__ClientId).");
+    }
+
+    if (string.IsNullOrWhiteSpace(clientSecret))
+    {
+        throw new InvalidOperationException(
+            "Missing required configuration: Authentication:ClientSecret (env Authentication__ClientSecret).");
     }
 
     if (string.IsNullOrWhiteSpace(connectionString))
@@ -87,26 +100,7 @@ if (!isSeed)
         });
     });
 
-    builder.Services
-        .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-        .AddJwtBearer(options =>
-        {
-            options.Authority = authority;
-            options.Audience = audience;
-            options.MapInboundClaims = false;
-            options.TokenValidationParameters = new TokenValidationParameters
-            {
-                ValidateIssuer = true,
-                ValidIssuer = authority,
-                ValidateAudience = true,
-                ValidAudience = audience,
-                ValidateLifetime = true,
-                ValidateIssuerSigningKey = true,
-                NameClaimType = "sub",
-            };
-        });
-
-    builder.Services.AddAuthorization();
+    builder.Services.AddDomusAuthentication(authority, audience, clientId, clientSecret);
     builder.Services.AddDomusApplication();
     builder.Services.AddDomusInfrastructure(connectionString);
 
@@ -159,6 +153,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseForwardedHeaders();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseMiddleware<RequestLoggingMiddleware>();
 

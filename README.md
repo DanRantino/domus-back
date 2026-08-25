@@ -36,7 +36,9 @@ Copie [`.env.example`](.env.example) para `.env` e preencha:
 | Variável                                        | Descrição                                                                 |
 | ----------------------------------------------- | ------------------------------------------------------------------------- |
 | `Authentication__Authority`                     | Issuer OIDC Logto (`…/oidc`)                                              |
-| `Authentication__Audience`                      | API resource / `aud` (mesmo valor que `VITE_LOGTO_API_RESOURCE` no front) |
+| `Authentication__Audience`                      | API resource / `aud`                                                      |
+| `Authentication__ClientId`                      | Logto Traditional Web (confidential) client id — BFF                      |
+| `Authentication__ClientSecret`                  | Logto Traditional Web client secret — nunca no frontend                   |
 | `DATABASE_URL` ou `ConnectionStrings__Database` | Postgres Railway                                                          |
 | `Cors__Origins__0`                              | Origem **pública** do SPA (local: `https://web.domus.dev`; Railway: `https://${{domus-front.RAILWAY_PUBLIC_DOMAIN}}`) |
 
@@ -151,6 +153,8 @@ railway variable set \
   ASPNETCORE_ENVIRONMENT=Production \
   Authentication__Authority=https://logto-auth-preprod.up.railway.app/oidc \
   Authentication__Audience=<seu-api-resource> \
+  Authentication__ClientId=<logto-web-app-id> \
+  Authentication__ClientSecret=<logto-web-app-secret> \
   Cors__Origins__0='https://${{domus-front.RAILWAY_PUBLIC_DOMAIN}}' \
   --service Domus.Api
 
@@ -170,6 +174,8 @@ Alternativa no dashboard: New Service → GitHub `DanRantino/domus-back` → o `
 | `ASPNETCORE_ENVIRONMENT`    | `Production`                                                                                      |
 | `Authentication__Authority` | Issuer Logto (ex. `https://logto-auth-preprod.up.railway.app/oidc`)                               |
 | `Authentication__Audience`  | API resource / `aud` (igual ao front)                                                             |
+| `Authentication__ClientId`  | Logto Traditional Web application id                                                              |
+| `Authentication__ClientSecret` | Logto Traditional Web client secret                                                            |
 | `DATABASE_URL`              | Referência privada `${{Postgres.DATABASE_URL}}` (não use a URL pública do TCP proxy)              |
 | `Cors__Origins__0`          | Origem **pública** do SPA: `https://${{domus-front.RAILWAY_PUBLIC_DOMAIN}}` (não use DNS interno) |
 
