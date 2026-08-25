@@ -1,0 +1,19 @@
+name: Protect main
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  require-nonprod:
+    name: PR must come from nonprod
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check source branch
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          if [ "$HEAD_REF" != "nonprod" ]; then
+            echo "::error::PRs into main must come from nonprod (got '$HEAD_REF')."
+            exit 1
+          fi

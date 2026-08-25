@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [main, nonprod]
+  pull_request:
+    branches: [main, nonprod]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore Domus.sln
+
+      - name: Build
+        run: dotnet build Domus.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test Domus.sln --configuration Release --no-build
