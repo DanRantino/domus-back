@@ -9,7 +9,7 @@ public sealed record LogtoUser(
     string? avatar,
     Dictionary<string, object> customData,
     Dictionary<string, object> identities,
-    DateTime? lastSignInAt,
+    long? lastSignInAt,
     long createdAt,
     long updatedAt,
     Dictionary<string, object> profile,

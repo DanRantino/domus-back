@@ -175,7 +175,7 @@ app.MapHealthChecks("/health/live", new HealthCheckOptions
         [HealthStatus.Degraded] = StatusCodes.Status200OK,
         [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable,
     },
-});
+}).AllowAnonymous();
 
 app.MapHealthChecks("/health/ready", new HealthCheckOptions
 {
@@ -186,7 +186,7 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
         [HealthStatus.Degraded] = StatusCodes.Status200OK,
         [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable,
     },
-});
+}).AllowAnonymous();
 
 app.MapControllers();
 

@@ -10,8 +10,21 @@ namespace Domus.Api.Tests.Support;
 
 public sealed class DomusApiFactory : WebApplicationFactory<Program>
 {
-    private readonly string _sqliteConnection =
-        $"Data Source=file:domus-{Guid.NewGuid():N}?mode=memory&cache=shared";
+    private readonly string _sqliteConnection;
+
+    public DomusApiFactory()
+        : this(databaseReachable: true)
+    {
+    }
+
+    private DomusApiFactory(bool databaseReachable)
+    {
+        _sqliteConnection = databaseReachable
+            ? $"Data Source=file:domus-{Guid.NewGuid():N}?mode=memory&cache=shared"
+            : "Data Source=/nonexistent/domus-unreachable.sqlite;Mode=ReadOnly";
+    }
+
+    public static DomusApiFactory WithUnreachableDatabase() => new(databaseReachable: false);
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
