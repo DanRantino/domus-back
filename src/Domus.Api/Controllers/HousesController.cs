@@ -62,4 +62,34 @@ public sealed class HousesController(HouseService houseService) : ControllerBase
         return EnvelopeResults.ToActionResult(
             result.Map(HouseResponse.FromApplication));
     }
+
+    [HttpPost]
+    [ProducesResponseType(
+        typeof(ApiEnvelope<HouseResponse>),
+        StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(
+        typeof(ApiEnvelope<HouseResponse>),
+        StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(
+        typeof(ApiEnvelope<HouseResponse>),
+        StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ApiEnvelope<HouseResponse>>> Create(
+        [FromBody] CreateHouseRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!User.TryGetIdentityId(out var identityId))
+        {
+            return Unauthorized();
+        }
+
+        var result = await houseService.CreateMineAsync(
+            identityId,
+            request?.Name,
+            cancellationToken);
+
+        return EnvelopeResults.ToActionResult(
+            result.Map(HouseResponse.FromApplication),
+            createdAt: result.IsSuccess ? $"/houses/{result.Value!.Id}" : null);
+    }
 }

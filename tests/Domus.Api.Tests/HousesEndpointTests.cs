@@ -121,4 +121,88 @@ public sealed class HousesEndpointTests : IAsyncLifetime
         Assert.NotNull(body.Error);
         Assert.Equal("not_found", body.Error.Code);
     }
+
+    [Fact]
+    public async Task CreateHouse_WithoutToken_Returns401()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/houses",
+            new CreateHouseRequest("Casa Nova"),
+            _jsonOptions);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateHouse_AuthenticatedButUnprovisioned_Returns403Envelope()
+    {
+        var client = _factory.CreateAuthenticatedClient("identity-unprovisioned");
+
+        var response = await client.PostAsJsonAsync(
+            "/houses",
+            new CreateHouseRequest("Casa Nova"),
+            _jsonOptions);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ApiEnvelope<HouseResponse>>(_jsonOptions);
+        Assert.NotNull(body);
+        Assert.False(body.Success);
+        Assert.Null(body.Data);
+        Assert.NotNull(body.Error);
+        Assert.Equal("not_provisioned", body.Error.Code);
+        Assert.Equal(0, _factory.CountHouses());
+    }
+
+    [Fact]
+    public async Task CreateHouse_EmptyName_Returns400()
+    {
+        const string identityId = "identity-create-empty";
+        await _factory.SeedUserAsync(identityId);
+        var client = _factory.CreateAuthenticatedClient(identityId);
+
+        var response = await client.PostAsJsonAsync(
+            "/houses",
+            new CreateHouseRequest("   "),
+            _jsonOptions);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ApiEnvelope<HouseResponse>>(_jsonOptions);
+        Assert.NotNull(body);
+        Assert.False(body.Success);
+        Assert.Null(body.Data);
+        Assert.NotNull(body.Error);
+        Assert.Equal("validation_error", body.Error.Code);
+        Assert.Equal(0, _factory.CountHouses());
+    }
+
+    [Fact]
+    public async Task CreateHouse_Provisioned_Returns201AndPersists()
+    {
+        const string identityId = "identity-create-house";
+        await _factory.SeedUserAsync(identityId);
+        var client = _factory.CreateAuthenticatedClient(identityId);
+
+        var response = await client.PostAsJsonAsync(
+            "/houses",
+            new CreateHouseRequest("  Casa Nova  "),
+            _jsonOptions);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ApiEnvelope<HouseResponse>>(_jsonOptions);
+        Assert.NotNull(body?.Data);
+        Assert.True(body.Success);
+        Assert.Null(body.Error);
+        Assert.Equal("Casa Nova", body.Data.Name);
+        Assert.Equal("admin", body.Data.Role);
+        Assert.Equal($"/houses/{body.Data.Id}", response.Headers.Location?.OriginalString);
+
+        var list = await client.GetAsync("/houses");
+        var listBody = await list.Content.ReadFromJsonAsync<ApiEnvelope<IReadOnlyList<HouseResponse>>>(_jsonOptions);
+        var membership = Assert.Single(listBody!.Data!);
+        Assert.Equal(body.Data.Id, membership.Id);
+        Assert.Equal("Casa Nova", membership.Name);
+        Assert.Equal("admin", membership.Role);
+    }
 }

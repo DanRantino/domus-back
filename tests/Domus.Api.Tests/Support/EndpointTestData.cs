@@ -66,4 +66,11 @@ internal static class EndpointTestData
         var db = scope.ServiceProvider.GetRequiredService<DomusDbContext>();
         return db.Users.Count();
     }
+
+    public static int CountHouses(this DomusApiFactory factory)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<DomusDbContext>();
+        return db.Houses.Count();
+    }
 }

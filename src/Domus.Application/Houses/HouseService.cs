@@ -3,8 +3,13 @@ using Domus.Application.Users;
 
 namespace Domus.Application.Houses;
 
-public sealed class HouseService(IUserStore userStore, IHouseMembershipReader membershipReader)
+public sealed class HouseService(
+    IUserStore userStore,
+    IHouseMembershipReader membershipReader,
+    IHouseWriter houseWriter)
 {
+    public const int NameMaxLength = 256;
+
     public async Task<AppResult<IReadOnlyList<HouseMembershipSummary>>> ListMineAsync(
         string identityId,
         CancellationToken cancellationToken)
@@ -43,5 +48,41 @@ public sealed class HouseService(IUserStore userStore, IHouseMembershipReader me
         }
 
         return AppResult<HouseMembershipSummary>.Success(house);
+    }
+
+    public async Task<AppResult<HouseMembershipSummary>> CreateMineAsync(
+        string identityId,
+        string? name,
+        CancellationToken cancellationToken)
+    {
+        var trimmed = name?.Trim() ?? string.Empty;
+        if (trimmed.Length == 0)
+        {
+            return AppResult<HouseMembershipSummary>.Failure(
+                ErrorCodes.ValidationError,
+                "Name is required");
+        }
+
+        if (trimmed.Length > NameMaxLength)
+        {
+            return AppResult<HouseMembershipSummary>.Failure(
+                ErrorCodes.ValidationError,
+                "Name is too long");
+        }
+
+        var user = await userStore.FindByIdentityIdAsync(identityId, cancellationToken);
+        if (user is null)
+        {
+            return AppResult<HouseMembershipSummary>.Failure(
+                ErrorCodes.NotProvisioned,
+                "User is not provisioned");
+        }
+
+        var house = await houseWriter.CreateWithOwnerAsync(
+            user.Id,
+            trimmed,
+            cancellationToken);
+
+        return AppResult<HouseMembershipSummary>.Created(house);
     }
 }
