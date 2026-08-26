@@ -38,9 +38,9 @@ Copie [`.env.example`](.env.example) para `.env` e preencha:
 | `Authentication__Authority`                     | Issuer OIDC Logto (`…/oidc`)                                              |
 | `Authentication__Audience`                      | API resource / `aud` (mesmo valor que `VITE_LOGTO_API_RESOURCE` no front) |
 | `DATABASE_URL` ou `ConnectionStrings__Database` | Postgres Railway                                                          |
-| `Cors__Origins__0`                              | Origem do SPA (default local: `http://localhost:3000`)                    |
+| `Cors__Origins__0`                              | Origem **pública** do SPA (local: `https://web.domus.dev`; Railway: `https://${{domus-front.RAILWAY_PUBLIC_DOMAIN}}`) |
 
-Porta local: `http://localhost:3001` (CORS permite `http://localhost:3000`).
+Porta local da API: `http://localhost:3001` (atrás do Caddy: `https://api.domus.dev`). O SPA local é `https://web.domus.dev` — configure `Cors__Origins__0` com essa origem.
 
 O Railway CLI vem no Dev Container. Secrets de serviço (M2M, audience, `DATABASE_URL` de preprod/prod) ficam no Railway — não no `.env` versionado. Depois de `railway login` e `railway link` neste repositório:
 
@@ -151,7 +151,7 @@ railway variable set \
   ASPNETCORE_ENVIRONMENT=Production \
   Authentication__Authority=https://logto-auth-preprod.up.railway.app/oidc \
   Authentication__Audience=<seu-api-resource> \
-  Cors__Origins__0=http://localhost:3000 \
+  Cors__Origins__0='https://${{domus-front.RAILWAY_PUBLIC_DOMAIN}}' \
   --service Domus.Api
 
 # DATABASE_URL privada do Postgres (ajuste o nome do serviço se for outro)
@@ -171,7 +171,7 @@ Alternativa no dashboard: New Service → GitHub `DanRantino/domus-back` → o `
 | `Authentication__Authority` | Issuer Logto (ex. `https://logto-auth-preprod.up.railway.app/oidc`)                               |
 | `Authentication__Audience`  | API resource / `aud` (igual ao front)                                                             |
 | `DATABASE_URL`              | Referência privada `${{Postgres.DATABASE_URL}}` (não use a URL pública do TCP proxy)              |
-| `Cors__Origins__0`          | Origem do front em produção (ex. `https://….up.railway.app` ou `http://localhost:3000` em testes) |
+| `Cors__Origins__0`          | Origem **pública** do SPA: `https://${{domus-front.RAILWAY_PUBLIC_DOMAIN}}` (não use DNS interno) |
 
 Não defina `ASPNETCORE_URLS=http://localhost:3001` no Railway. A app lê `PORT` e escuta em `0.0.0.0:$PORT`.
 
@@ -183,7 +183,7 @@ curl -s https://<api-domain>/health/ready
 curl -s -o /dev/null -w '%{http_code}\n' https://<api-domain>/me   # esperado: 401
 ```
 
-No front, aponte `VITE_DOMUS_API_BASE_URL` para o domínio da API e ajuste o parse de `/me` para o envelope (`data` / `error.code`).
+No front, `VITE_DOMUS_API_BASE_URL` deve ser a URL **pública** da API (`https://${{domus-back.RAILWAY_PUBLIC_DOMAIN}}`). O browser não alcança `*.railway.internal`.
 
 ## Follow-up no frontend
 
