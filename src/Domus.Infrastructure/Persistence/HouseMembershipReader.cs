@@ -1,9 +1,11 @@
 using Domus.Application.Houses;
+using Domus.Domain.Houses;
 using Microsoft.EntityFrameworkCore;
 
 namespace Domus.Infrastructure.Persistence;
 
-public sealed class HouseMembershipReader(DomusDbContext db) : IHouseMembershipReader
+public sealed class HouseMembershipReader(DomusDbContext db)
+    : IHouseMembershipReader, IHouseWriter
 {
     public async Task<IReadOnlyList<HouseMembershipSummary>> ListByUserIdAsync(
         Guid userId,
@@ -17,5 +19,29 @@ public sealed class HouseMembershipReader(DomusDbContext db) : IHouseMembershipR
                 m.House!.Name,
                 m.Role))
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<HouseMembershipSummary> CreateWithOwnerAsync(
+        Guid userId,
+        string name,
+        CancellationToken cancellationToken)
+    {
+        var house = new House
+        {
+            Id = Guid.NewGuid(),
+            Name = name,
+        };
+
+        db.Houses.Add(house);
+        db.HouseMemberships.Add(new HouseMembership
+        {
+            UserId = userId,
+            HouseId = house.Id,
+            Role = HouseRoles.Admin,
+        });
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        return new HouseMembershipSummary(house.Id, house.Name, HouseRoles.Admin);
     }
 }
