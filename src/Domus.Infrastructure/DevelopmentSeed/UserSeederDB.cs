@@ -1,8 +1,7 @@
-using Domus.Infrastructure.DevelopmentSeed;
+using Domus.Domain.Users;
 using Domus.Infrastructure.Identity;
 using Domus.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
-using Domus.Domain.Users;
 
 namespace Domus.Infrastructure.DevelopmentSeed;
 
@@ -36,10 +35,7 @@ public sealed class UserSeederDB
             }
         }
 
-        if (_dbContext.ChangeTracker.HasChanges())
-        {
-            await _dbContext.SaveChangesAsync(cancellationToken);
-        }
+        await _dbContext.SaveIfChangedAsync(cancellationToken);
 
         return usersToSeed;
     }

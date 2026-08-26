@@ -121,6 +121,8 @@ Health checks **não** usam o envelope de produto.
 | `POST`  | `/me`           | Bearer JWT | `201` + envelope (defaults) / `409` + `already_exists` / `401`                                      |
 | `PATCH` | `/me`           | Bearer JWT | atualiza `full_name` (opcional; null/"" limpa)                                                      |
 | `PATCH` | `/me/settings`  | Bearer JWT | atualiza `theme` e/ou `notifications` (merge parcial); `400` + `validation_error` se theme inválido |
+| `GET`   | `/houses`       | Bearer JWT | `401` / `403` + `not_provisioned` / `200` + envelope com as casas do caller (lista pode ser vazia)  |
+| `GET`   | `/houses/{id}`  | Bearer JWT | `401` / `403` + `not_provisioned` / `200` + envelope da casa / `404` + `not_found` se não for membro |
 
 `GET /me` nunca provisiona. `POST /me` ignora body — `identity_id` vem só do token. Settings default no provisionamento: `theme=system`, notificações `daily_tasks` / `expenses` / `family_chat` = `true`.
 

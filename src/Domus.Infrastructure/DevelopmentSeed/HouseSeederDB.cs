@@ -37,10 +37,7 @@ public sealed class HouseSeederDB
             houses.Add(house);
         }
 
-        if (_dbContext.ChangeTracker.HasChanges())
-        {
-            await _dbContext.SaveChangesAsync(cancellationToken);
-        }
+        await _dbContext.SaveIfChangedAsync(cancellationToken);
 
         return houses;
     }
