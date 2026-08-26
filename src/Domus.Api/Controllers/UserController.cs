@@ -33,4 +33,29 @@ public sealed class UsersController(MeService meService) : ControllerBase
         return EnvelopeResults.ToActionResult(
             result.Map(MeResponse.FromApplication));
     }
+
+    [HttpPost("me")]
+    [ProducesResponseType(
+        typeof(ApiEnvelope<MeResponse>),
+        StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(
+        typeof(ApiEnvelope<MeResponse>),
+        StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<ApiEnvelope<MeResponse>>> ProvisionMe(
+        CancellationToken cancellationToken)
+    {
+        if (!User.TryGetIdentityId(out var identityId))
+        {
+            return Unauthorized();
+        }
+
+        var result = await meService.ProvisionAsync(
+            identityId,
+            cancellationToken);
+
+        return EnvelopeResults.ToActionResult(
+            result.Map(MeResponse.FromApplication),
+            createdAt: result.IsSuccess ? "/users/me" : null);
+    }
 }

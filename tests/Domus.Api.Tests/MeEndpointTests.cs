@@ -49,6 +49,63 @@ public sealed class MeEndpointTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task PostMe_WithoutToken_Returns401()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.PostAsync("/users/me", null);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal(0, _factory.CountUsers());
+    }
+
+    [Fact]
+    public async Task PostMe_Unprovisioned_Returns201AndPersists()
+    {
+        const string identityId = "identity-provision-me";
+        var client = _factory.CreateAuthenticatedClient(identityId);
+
+        var response = await client.PostAsync("/users/me", null);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Equal("/users/me", response.Headers.Location?.OriginalString);
+        var body = await response.Content.ReadFromJsonAsync<ApiEnvelope<MeResponse>>(_jsonOptions);
+        Assert.NotNull(body?.Data);
+        Assert.True(body.Success);
+        Assert.Null(body.Error);
+        Assert.Empty(body.Data.Houses);
+        Assert.Equal("system", body.Data.Theme);
+        Assert.True(body.Data.NotifyDailyTasks);
+        Assert.True(body.Data.NotifyExpenses);
+        Assert.True(body.Data.NotifyFamilyChat);
+        Assert.Equal(1, _factory.CountUsers());
+
+        var get = await client.GetAsync("/users/me");
+        Assert.Equal(HttpStatusCode.OK, get.StatusCode);
+        var getBody = await get.Content.ReadFromJsonAsync<ApiEnvelope<MeResponse>>(_jsonOptions);
+        Assert.Equal(body.Data.Id, getBody!.Data!.Id);
+    }
+
+    [Fact]
+    public async Task PostMe_AlreadyProvisioned_Returns409()
+    {
+        const string identityId = "identity-already-provisioned";
+        await _factory.SeedUserAsync(identityId);
+        var client = _factory.CreateAuthenticatedClient(identityId);
+
+        var response = await client.PostAsync("/users/me", null);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ApiEnvelope<MeResponse>>(_jsonOptions);
+        Assert.NotNull(body);
+        Assert.False(body.Success);
+        Assert.Null(body.Data);
+        Assert.NotNull(body.Error);
+        Assert.Equal("already_exists", body.Error.Code);
+        Assert.Equal(1, _factory.CountUsers());
+    }
+
+    [Fact]
     public async Task GetMe_Provisioned_Returns200EnvelopeWithIdAndEmptyHouses()
     {
         const string identityId = "identity-provisioned";
