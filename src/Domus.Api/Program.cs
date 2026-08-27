@@ -131,7 +131,9 @@ if (!isSeed)
         options.Endpoint = logtoEndpoint;
         options.AppId = logtoAppId;
         options.AppSecret = logtoAppSecret;
-        options.Resource = audience;
+        // Cookie BFF authenticates the SPA from the session cookie, not a resource
+        // access token. Setting Resource makes the Logto SDK reject the principal
+        // when access_token.resource is missing, which loops /dashboard ↔ /oidc.
     });
 
     builder.Services
@@ -178,8 +180,9 @@ if (!isSeed)
         options =>
         {
             options.Cookie.HttpOnly = true;
-            options.Cookie.SameSite = SameSiteMode.Lax;
-            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+            // form_post from the IdP origin; Lax is dropped and login loops.
+            options.Cookie.SameSite = SameSiteMode.None;
+            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
         });
 
     builder.Services.AddAuthorization();
