@@ -3,8 +3,12 @@ using Domus.Api.Http;
 using Domus.Application;
 using Domus.Infrastructure;
 using Domus.Infrastructure.Persistence;
+using Logto.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
@@ -48,6 +52,9 @@ if (!isSeed)
 
     var authority = builder.Configuration["Authentication:Authority"];
     var audience = builder.Configuration["Authentication:Audience"];
+    var logtoEndpoint = builder.Configuration["Logto:Endpoint"];
+    var logtoAppId = builder.Configuration["Logto:AppId"];
+    var logtoAppSecret = builder.Configuration["Logto:AppSecret"];
     var connectionString = DatabaseConnection.Resolve(builder.Configuration);
     var corsOrigins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>()
         ?? ["http://localhost:3000"];
@@ -62,6 +69,29 @@ if (!isSeed)
     {
         throw new InvalidOperationException(
             "Missing required configuration: Authentication:Audience (env Authentication__Audience).");
+    }
+
+    if (string.IsNullOrWhiteSpace(logtoEndpoint))
+    {
+        throw new InvalidOperationException(
+            "Missing required configuration: Logto:Endpoint (env Logto__Endpoint).");
+    }
+
+    if (string.IsNullOrWhiteSpace(logtoAppId))
+    {
+        throw new InvalidOperationException(
+            "Missing required configuration: Logto:AppId (env Logto__AppId).");
+    }
+
+    if (string.IsNullOrWhiteSpace(logtoAppSecret))
+    {
+        throw new InvalidOperationException(
+            "Missing required configuration: Logto:AppSecret (env Logto__AppSecret).");
+    }
+
+    if (!logtoEndpoint.EndsWith('/'))
+    {
+        logtoEndpoint += "/";
     }
 
     if (string.IsNullOrWhiteSpace(connectionString))
@@ -87,8 +117,25 @@ if (!isSeed)
         });
     });
 
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor
+            | ForwardedHeaders.XForwardedProto
+            | ForwardedHeaders.XForwardedHost;
+        options.KnownIPNetworks.Clear();
+        options.KnownProxies.Clear();
+    });
+
+    builder.Services.AddLogtoAuthentication(options =>
+    {
+        options.Endpoint = logtoEndpoint;
+        options.AppId = logtoAppId;
+        options.AppSecret = logtoAppSecret;
+        options.Resource = audience;
+    });
+
     builder.Services
-        .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddAuthentication()
         .AddJwtBearer(options =>
         {
             options.Authority = authority;
@@ -104,6 +151,35 @@ if (!isSeed)
                 ValidateIssuerSigningKey = true,
                 NameClaimType = "sub",
             };
+        })
+        .AddPolicyScheme(
+            DomusAuthSchemes.CookieOrBearer,
+            DomusAuthSchemes.CookieOrBearer,
+            options =>
+            {
+                options.ForwardDefaultSelector = context =>
+                {
+                    var authorization = context.Request.Headers.Authorization.ToString();
+                    return authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+                        ? JwtBearerDefaults.AuthenticationScheme
+                        : LogtoDefaults.CookieScheme;
+                };
+            });
+
+    builder.Services.PostConfigure<AuthenticationOptions>(options =>
+    {
+        options.DefaultAuthenticateScheme = DomusAuthSchemes.CookieOrBearer;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultSignOutScheme = LogtoDefaults.AuthenticationScheme;
+    });
+
+    builder.Services.PostConfigure<CookieAuthenticationOptions>(
+        LogtoDefaults.CookieScheme,
+        options =>
+        {
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SameSite = SameSiteMode.Lax;
+            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
         });
 
     builder.Services.AddAuthorization();
@@ -159,6 +235,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseForwardedHeaders();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseMiddleware<RequestLoggingMiddleware>();
 
