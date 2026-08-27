@@ -5,6 +5,7 @@ using Domus.Api.Contracts.Users;
 using Domus.Api.Http;
 using Domus.Api.Tests.Support;
 using Domus.Domain.Houses;
+using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Domus.Api.Tests;
 
@@ -24,11 +25,15 @@ public sealed class MeEndpointTests : IAsyncLifetime
     [Fact]
     public async Task GetMe_WithoutToken_Returns401()
     {
-        var client = _factory.CreateClient();
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+        });
 
         var response = await client.GetAsync("/users/me");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Null(response.Headers.Location);
     }
 
     [Fact]
