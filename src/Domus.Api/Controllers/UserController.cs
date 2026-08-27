@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Domus.Api.Contracts.Users;
 using Domus.Api.Http;
 using Domus.Application.Users;
@@ -22,9 +21,7 @@ public sealed class UsersController(MeService meService) : ControllerBase
     public async Task<ActionResult<ApiEnvelope<MeResponse>>> GetMe(
         CancellationToken cancellationToken)
     {
-        var identityId = User.FindFirstValue("sub");
-
-        if (string.IsNullOrWhiteSpace(identityId))
+        if (!User.TryGetIdentityId(out var identityId))
         {
             return Unauthorized();
         }

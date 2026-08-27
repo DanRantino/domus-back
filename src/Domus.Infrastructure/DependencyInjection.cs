@@ -17,7 +17,11 @@ public static class DependencyInjection
                 npgsql.MigrationsAssembly(typeof(DomusDbContext).Assembly.FullName)));
 
         services.AddScoped<IUserStore, UserStore>();
-        services.AddScoped<IHouseMembershipReader, HouseMembershipReader>();
+        services.AddScoped<HouseMembershipReader>();
+        services.AddScoped<IHouseMembershipReader>(sp =>
+            sp.GetRequiredService<HouseMembershipReader>());
+        services.AddScoped<IHouseWriter>(sp =>
+            sp.GetRequiredService<HouseMembershipReader>());
 
         services.AddHealthChecks()
             .AddDbContextCheck<DomusDbContext>("database", tags: ["ready"]);

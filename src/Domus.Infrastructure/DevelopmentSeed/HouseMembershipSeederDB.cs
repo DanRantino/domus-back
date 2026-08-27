@@ -65,9 +65,6 @@ public sealed class HouseMembershipSeederDB
             }
         }
 
-        if (_dbContext.ChangeTracker.HasChanges())
-        {
-            await _dbContext.SaveChangesAsync(cancellationToken);
-        }
+        await _dbContext.SaveIfChangedAsync(cancellationToken);
     }
 }
