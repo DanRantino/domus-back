@@ -21,13 +21,21 @@ public sealed class UsersController(MeService meService) : ControllerBase
     public async Task<ActionResult<ApiEnvelope<MeResponse>>> GetMe(
         CancellationToken cancellationToken)
     {
-        if (!User.TryGetIdentityId(out var identityId))
+        if (!CurrentUserContext.TryRequire<MeResponse>(
+            HttpContext,
+            out var currentUser,
+            out var failure))
         {
-            return Unauthorized();
+            return failure;
         }
 
         var result = await meService.GetAsync(
-            identityId,
+            currentUser.Id,
+            currentUser.FullName,
+            currentUser.NotifyDailyTasks,
+            currentUser.NotifyExpenses,
+            currentUser.NotifyFamilyChat,
+            currentUser.Theme,
             cancellationToken);
 
         return EnvelopeResults.ToActionResult(

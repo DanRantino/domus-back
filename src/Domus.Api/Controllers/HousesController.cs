@@ -21,13 +21,16 @@ public sealed class HousesController(HouseService houseService) : ControllerBase
     public async Task<ActionResult<ApiEnvelope<IReadOnlyList<HouseResponse>>>> List(
         CancellationToken cancellationToken)
     {
-        if (!User.TryGetIdentityId(out var identityId))
+        if (!CurrentUserContext.TryRequire<IReadOnlyList<HouseResponse>>(
+            HttpContext,
+            out var currentUser,
+            out var failure))
         {
-            return Unauthorized();
+            return failure;
         }
 
         var result = await houseService.ListMineAsync(
-            identityId,
+            currentUser.Id,
             cancellationToken);
 
         return EnvelopeResults.ToActionResult(
@@ -49,13 +52,16 @@ public sealed class HousesController(HouseService houseService) : ControllerBase
         Guid id,
         CancellationToken cancellationToken)
     {
-        if (!User.TryGetIdentityId(out var identityId))
+        if (!CurrentUserContext.TryRequire<HouseResponse>(
+            HttpContext,
+            out var currentUser,
+            out var failure))
         {
-            return Unauthorized();
+            return failure;
         }
 
         var result = await houseService.GetMineAsync(
-            identityId,
+            currentUser.Id,
             id,
             cancellationToken);
 
@@ -78,13 +84,16 @@ public sealed class HousesController(HouseService houseService) : ControllerBase
         [FromBody] CreateHouseRequest request,
         CancellationToken cancellationToken)
     {
-        if (!User.TryGetIdentityId(out var identityId))
+        if (!CurrentUserContext.TryRequire<HouseResponse>(
+            HttpContext,
+            out var currentUser,
+            out var failure))
         {
-            return Unauthorized();
+            return failure;
         }
 
         var result = await houseService.CreateMineAsync(
-            identityId,
+            currentUser.Id,
             request?.Name,
             cancellationToken);
 

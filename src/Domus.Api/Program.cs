@@ -245,6 +245,7 @@ app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<CurrentUserMiddleware>();
 
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {

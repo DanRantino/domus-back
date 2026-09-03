@@ -3,21 +3,26 @@ using Domus.Application.Houses;
 
 namespace Domus.Application.Users;
 
-public sealed class MeService(IUserStore userStore, IHouseMembershipReader membershipReader)
+public sealed class MeService(IHouseMembershipReader membershipReader)
 {
     public async Task<AppResult<MeResult>> GetAsync(
-        string identityId,
+        Guid userId,
+        string? fullName,
+        bool notifyDailyTasks,
+        bool notifyExpenses,
+        bool notifyFamilyChat,
+        string theme,
         CancellationToken cancellationToken)
     {
-        var user = await userStore.FindByIdentityIdAsync(identityId, cancellationToken);
-        if (user is null)
-        {
-            return AppResult<MeResult>.Failure(
-                ErrorCodes.NotProvisioned,
-                "User is not provisioned");
-        }
-
-        var houses = await membershipReader.ListByUserIdAsync(user.Id, cancellationToken);
-        return AppResult<MeResult>.Success(new MeResult(user.Id, user.FullName, user.NotifyDailyTasks, user.NotifyExpenses, user.NotifyFamilyChat, user.Theme, houses));
+        var houses = await membershipReader.ListByUserIdAsync(userId, cancellationToken);
+        return AppResult<MeResult>.Success(
+            new MeResult(
+                userId,
+                fullName ?? string.Empty,
+                notifyDailyTasks,
+                notifyExpenses,
+                notifyFamilyChat,
+                theme,
+                houses));
     }
 }

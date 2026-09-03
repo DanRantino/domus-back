@@ -1,44 +1,27 @@
 using Domus.Application.Common;
-using Domus.Application.Users;
 
 namespace Domus.Application.Houses;
 
 public sealed class HouseService(
-    IUserStore userStore,
     IHouseMembershipReader membershipReader,
     IHouseWriter houseWriter)
 {
     public const int NameMaxLength = 256;
 
     public async Task<AppResult<IReadOnlyList<HouseMembershipSummary>>> ListMineAsync(
-        string identityId,
+        Guid userId,
         CancellationToken cancellationToken)
     {
-        var user = await userStore.FindByIdentityIdAsync(identityId, cancellationToken);
-        if (user is null)
-        {
-            return AppResult<IReadOnlyList<HouseMembershipSummary>>.Failure(
-                ErrorCodes.NotProvisioned,
-                "User is not provisioned");
-        }
-
-        var houses = await membershipReader.ListByUserIdAsync(user.Id, cancellationToken);
+        var houses = await membershipReader.ListByUserIdAsync(userId, cancellationToken);
         return AppResult<IReadOnlyList<HouseMembershipSummary>>.Success(houses);
     }
 
     public async Task<AppResult<HouseMembershipSummary>> GetMineAsync(
-        string identityId,
+        Guid userId,
         Guid houseId,
         CancellationToken cancellationToken)
     {
-        var listResult = await ListMineAsync(identityId, cancellationToken);
-        if (!listResult.IsSuccess)
-        {
-            return AppResult<HouseMembershipSummary>.Failure(
-                listResult.Error!.Code,
-                listResult.Error.Message);
-        }
-
+        var listResult = await ListMineAsync(userId, cancellationToken);
         var house = listResult.Value!.FirstOrDefault(item => item.Id == houseId);
         if (house is null)
         {
@@ -51,7 +34,7 @@ public sealed class HouseService(
     }
 
     public async Task<AppResult<HouseMembershipSummary>> CreateMineAsync(
-        string identityId,
+        Guid userId,
         string? name,
         CancellationToken cancellationToken)
     {
@@ -70,16 +53,8 @@ public sealed class HouseService(
                 "Name is too long");
         }
 
-        var user = await userStore.FindByIdentityIdAsync(identityId, cancellationToken);
-        if (user is null)
-        {
-            return AppResult<HouseMembershipSummary>.Failure(
-                ErrorCodes.NotProvisioned,
-                "User is not provisioned");
-        }
-
         var house = await houseWriter.CreateWithOwnerAsync(
-            user.Id,
+            userId,
             trimmed,
             cancellationToken);
 
