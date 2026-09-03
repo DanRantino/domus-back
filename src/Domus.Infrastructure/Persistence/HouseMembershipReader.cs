@@ -44,4 +44,20 @@ public sealed class HouseMembershipReader(DomusDbContext db)
 
         return new HouseMembershipSummary(house.Id, house.Name, HouseRoles.Admin);
     }
+
+    public async Task AddMemberAsync(
+        Guid userId,
+        Guid houseId,
+        string role,
+        CancellationToken cancellationToken)
+    {
+        db.HouseMemberships.Add(new HouseMembership
+        {
+            UserId = userId,
+            HouseId = houseId,
+            Role = role,
+        });
+
+        await Task.CompletedTask;
+    }
 }

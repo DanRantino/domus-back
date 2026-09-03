@@ -3,6 +3,7 @@ using System.Text.Json;
 using Domus.Domain.Houses;
 using Domus.Domain.Users;
 using Domus.Infrastructure.Persistence;
+using Domus.Application.Houses;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Domus.Api.Tests.Support;
@@ -14,11 +15,19 @@ internal static class EndpointTestData
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
     };
 
-    public static HttpClient CreateAuthenticatedClient(this DomusApiFactory factory, string sub)
+    public static HttpClient CreateAuthenticatedClient(
+        this DomusApiFactory factory,
+        string sub,
+        string? email = null)
     {
         var client = factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "test");
         client.DefaultRequestHeaders.Add(TestAuthHandler.SubHeader, sub);
+        if (!string.IsNullOrWhiteSpace(email))
+        {
+            client.DefaultRequestHeaders.Add(TestAuthHandler.EmailHeader, email);
+        }
+
         return client;
     }
 
@@ -72,5 +81,48 @@ internal static class EndpointTestData
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<DomusDbContext>();
         return db.Houses.Count();
+    }
+
+    public static int CountInvitations(this DomusApiFactory factory)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<DomusDbContext>();
+        return db.HouseInvitations.Count();
+    }
+
+    public static int CountMemberships(this DomusApiFactory factory)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<DomusDbContext>();
+        return db.HouseMemberships.Count();
+    }
+
+    public static async Task<HouseInvitation> SeedInvitationAsync(
+        this DomusApiFactory factory,
+        Guid houseId,
+        Guid invitedByUserId,
+        string email,
+        string token,
+        string role = HouseRoles.Member,
+        string status = HouseInvitationStatuses.Pending,
+        DateTimeOffset? expiresAt = null)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<DomusDbContext>();
+        var invitation = new HouseInvitation
+        {
+            Id = Guid.NewGuid(),
+            HouseId = houseId,
+            InvitedByUserId = invitedByUserId,
+            Email = email.Trim().ToLowerInvariant(),
+            Role = role,
+            TokenHash = InvitationTokens.Hash(token),
+            Status = status,
+            ExpiresAt = expiresAt ?? DateTimeOffset.UtcNow.AddDays(7),
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+        db.HouseInvitations.Add(invitation);
+        await db.SaveChangesAsync();
+        return invitation;
     }
 }

@@ -22,6 +22,7 @@ public static class DependencyInjection
             sp.GetRequiredService<HouseMembershipReader>());
         services.AddScoped<IHouseWriter>(sp =>
             sp.GetRequiredService<HouseMembershipReader>());
+        services.AddScoped<IHouseInvitationStore, HouseInvitationStore>();
 
         services.AddHealthChecks()
             .AddDbContextCheck<DomusDbContext>("database", tags: ["ready"]);

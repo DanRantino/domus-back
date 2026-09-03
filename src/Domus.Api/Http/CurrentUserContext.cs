@@ -45,4 +45,21 @@ public static class CurrentUserContext
                 "User is not provisioned"));
         return false;
     }
+
+    public static bool TryRequireIdentity<T>(
+        HttpContext context,
+        [NotNullWhen(true)] out string identityId,
+        [NotNullWhen(false)] out ActionResult<ApiEnvelope<T>>? failure)
+    {
+        if (context.User.Identity?.IsAuthenticated == true
+            && context.User.TryGetIdentityId(out identityId))
+        {
+            failure = null;
+            return true;
+        }
+
+        identityId = null!;
+        failure = new UnauthorizedResult();
+        return false;
+    }
 }

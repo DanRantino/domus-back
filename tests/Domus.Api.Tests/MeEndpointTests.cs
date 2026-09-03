@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Domus.Api.Contracts.Houses;
 using Domus.Api.Contracts.Users;
 using Domus.Api.Http;
 using Domus.Api.Tests.Support;
@@ -51,6 +52,68 @@ public sealed class MeEndpointTests : IAsyncLifetime
         Assert.NotNull(body.Error);
         Assert.Equal("not_provisioned", body.Error.Code);
         Assert.Equal(0, _factory.CountUsers());
+    }
+
+    [Fact]
+    public async Task PostMe_WithoutToken_Returns401()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+        });
+
+        var response = await client.PostAsync("/users/me", content: null);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal(0, _factory.CountUsers());
+    }
+
+    [Fact]
+    public async Task PostMe_Unprovisioned_Returns201AndPersists()
+    {
+        const string identityId = "identity-self-serve";
+        var client = _factory.CreateAuthenticatedClient(identityId);
+
+        var response = await client.PostAsync("/users/me", content: null);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Equal("/users/me", response.Headers.Location?.OriginalString);
+        var body = await response.Content.ReadFromJsonAsync<ApiEnvelope<MeResponse>>(_jsonOptions);
+        Assert.NotNull(body?.Data);
+        Assert.True(body.Success);
+        Assert.Null(body.Error);
+        Assert.Equal(string.Empty, body.Data.FullName);
+        Assert.Equal("system", body.Data.Theme);
+        Assert.True(body.Data.NotifyDailyTasks);
+        Assert.True(body.Data.NotifyExpenses);
+        Assert.True(body.Data.NotifyFamilyChat);
+        Assert.Empty(body.Data.Houses);
+        Assert.Equal(1, _factory.CountUsers());
+
+        var list = await client.GetAsync("/houses");
+        Assert.Equal(HttpStatusCode.OK, list.StatusCode);
+        var listBody = await list.Content.ReadFromJsonAsync<ApiEnvelope<IReadOnlyList<HouseResponse>>>(_jsonOptions);
+        Assert.NotNull(listBody?.Data);
+        Assert.Empty(listBody.Data);
+    }
+
+    [Fact]
+    public async Task PostMe_AlreadyProvisioned_Returns409()
+    {
+        const string identityId = "identity-already-provisioned";
+        await _factory.SeedUserAsync(identityId);
+        var client = _factory.CreateAuthenticatedClient(identityId);
+
+        var response = await client.PostAsync("/users/me", content: null);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ApiEnvelope<MeResponse>>(_jsonOptions);
+        Assert.NotNull(body);
+        Assert.False(body.Success);
+        Assert.Null(body.Data);
+        Assert.NotNull(body.Error);
+        Assert.Equal("already_exists", body.Error.Code);
+        Assert.Equal(1, _factory.CountUsers());
     }
 
     [Fact]

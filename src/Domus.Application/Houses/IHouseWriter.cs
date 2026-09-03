@@ -6,4 +6,10 @@ public interface IHouseWriter
         Guid userId,
         string name,
         CancellationToken cancellationToken);
+
+    Task AddMemberAsync(
+        Guid userId,
+        Guid houseId,
+        string role,
+        CancellationToken cancellationToken);
 }

@@ -14,6 +14,8 @@ public sealed class DomusDbContext(
 
     public DbSet<HouseMembership> HouseMemberships => Set<HouseMembership>();
 
+    public DbSet<HouseInvitation> HouseInvitations => Set<HouseInvitation>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(
