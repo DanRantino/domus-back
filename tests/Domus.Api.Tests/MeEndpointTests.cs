@@ -83,11 +83,11 @@ public sealed class MeEndpointTests : IAsyncLifetime
         Assert.True(body.Success);
         Assert.Null(body.Error);
         Assert.Equal(string.Empty, body.Data.FullName);
+        Assert.Empty(body.Data.Houses);
         Assert.Equal("system", body.Data.Theme);
         Assert.True(body.Data.NotifyDailyTasks);
         Assert.True(body.Data.NotifyExpenses);
         Assert.True(body.Data.NotifyFamilyChat);
-        Assert.Empty(body.Data.Houses);
         Assert.Equal(1, _factory.CountUsers());
 
         var list = await client.GetAsync("/houses");
@@ -95,6 +95,11 @@ public sealed class MeEndpointTests : IAsyncLifetime
         var listBody = await list.Content.ReadFromJsonAsync<ApiEnvelope<IReadOnlyList<HouseResponse>>>(_jsonOptions);
         Assert.NotNull(listBody?.Data);
         Assert.Empty(listBody.Data);
+
+        var get = await client.GetAsync("/users/me");
+        Assert.Equal(HttpStatusCode.OK, get.StatusCode);
+        var getBody = await get.Content.ReadFromJsonAsync<ApiEnvelope<MeResponse>>(_jsonOptions);
+        Assert.Equal(body.Data.Id, getBody!.Data!.Id);
     }
 
     [Fact]
