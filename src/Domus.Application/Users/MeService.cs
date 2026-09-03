@@ -4,26 +4,34 @@ using Domus.Domain.Users;
 
 namespace Domus.Application.Users;
 
-public sealed class MeService(IUserStore userStore, IHouseMembershipReader membershipReader)
+public sealed class MeService(
+    IHouseMembershipReader membershipReader,
+    IUserStore userStore)
 {
     public async Task<AppResult<MeResult>> GetAsync(
-        string identityId,
+        Guid userId,
+        string? fullName,
+        bool notifyDailyTasks,
+        bool notifyExpenses,
+        bool notifyFamilyChat,
+        string theme,
         CancellationToken cancellationToken)
     {
-        var user = await userStore.FindByIdentityIdAsync(identityId, cancellationToken);
-        if (user is null)
-        {
-            return AppResult<MeResult>.Failure(
-                ErrorCodes.NotProvisioned,
-                "User is not provisioned");
-        }
-
-        var houses = await membershipReader.ListByUserIdAsync(user.Id, cancellationToken);
-        return AppResult<MeResult>.Success(ToMeResult(user, houses));
+        var houses = await membershipReader.ListByUserIdAsync(userId, cancellationToken);
+        return AppResult<MeResult>.Success(
+            ToResult(
+                userId,
+                fullName,
+                notifyDailyTasks,
+                notifyExpenses,
+                notifyFamilyChat,
+                theme,
+                houses));
     }
 
     public async Task<AppResult<MeResult>> ProvisionAsync(
         string identityId,
+        string? fullName,
         CancellationToken cancellationToken)
     {
         var existing = await userStore.FindByIdentityIdAsync(identityId, cancellationToken);
@@ -34,28 +42,41 @@ public sealed class MeService(IUserStore userStore, IHouseMembershipReader membe
                 "User already exists");
         }
 
-        var user = new User(Guid.NewGuid(), identityId, fullName: null);
+        var trimmedName = string.IsNullOrWhiteSpace(fullName) ? null : fullName.Trim();
+        var user = new User(Guid.NewGuid(), identityId, trimmedName);
         await userStore.AddAsync(user, cancellationToken);
-        var saved = await userStore.SaveChangesIgnoringUniqueViolationAsync(cancellationToken);
-        if (!saved)
+        if (!await userStore.SaveChangesIgnoringUniqueViolationAsync(cancellationToken))
         {
             return AppResult<MeResult>.Failure(
                 ErrorCodes.AlreadyExists,
                 "User already exists");
         }
 
-        return AppResult<MeResult>.Created(ToMeResult(user, []));
+        return AppResult<MeResult>.Created(
+            ToResult(
+                user.Id,
+                user.FullName,
+                user.NotifyDailyTasks,
+                user.NotifyExpenses,
+                user.NotifyFamilyChat,
+                user.Theme,
+                []));
     }
 
-    private static MeResult ToMeResult(
-        User user,
+    private static MeResult ToResult(
+        Guid userId,
+        string? fullName,
+        bool notifyDailyTasks,
+        bool notifyExpenses,
+        bool notifyFamilyChat,
+        string theme,
         IReadOnlyList<HouseMembershipSummary> houses) =>
         new(
-            user.Id,
-            user.FullName!,
-            user.NotifyDailyTasks,
-            user.NotifyExpenses,
-            user.NotifyFamilyChat,
-            user.Theme,
+            userId,
+            fullName ?? string.Empty,
+            notifyDailyTasks,
+            notifyExpenses,
+            notifyFamilyChat,
+            theme,
             houses);
 }

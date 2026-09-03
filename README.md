@@ -1,6 +1,6 @@
 # Domus API
 
-Backend .NET da Domus. Monólito modular: **Domain / Application / Infrastructure / Api**. Capability inicial: **Users** + JWT Logto + `GET/POST /me`.
+Backend .NET da Domus. Monólito modular: **Domain / Application / Infrastructure / Api**. Capability inicial: **Users**. Autenticação: cookie HttpOnly via SDK Logto MVC (`AddLogtoAuthentication`) para o SPA, mais JWT Bearer para clientes não-browser.
 
 ## Requisitos
 
@@ -35,12 +35,26 @@ Copie [`.env.example`](.env.example) para `.env` e preencha:
 
 | Variável                                        | Descrição                                                                 |
 | ----------------------------------------------- | ------------------------------------------------------------------------- |
-| `Authentication__Authority`                     | Issuer OIDC Logto (`…/oidc`)                                              |
-| `Authentication__Audience`                      | API resource / `aud` (mesmo valor que `VITE_LOGTO_API_RESOURCE` no front) |
+| `Authentication__Authority`                     | Issuer OIDC Logto (`…/oidc`) — validação JWT Bearer                       |
+| `Authentication__Audience`                      | API resource / `aud` (JWT + `options.Resource` do SDK)                    |
+| `Logto__Endpoint`                               | URL do tenant **com barra final** (`https://auth.domus.dev/`). Não use `…/oidc` |
+| `Logto__AppId`                                  | App ID do Traditional Web App no Console Logto                            |
+| `Logto__AppSecret`                              | App secret do Traditional Web App (só na API, nunca no front)             |
 | `DATABASE_URL` ou `ConnectionStrings__Database` | Postgres Railway                                                          |
 | `Cors__Origins__0`                              | Origem **pública** do SPA (local: `https://web.domus.dev`; Railway: `https://${{domus-front.RAILWAY_PUBLIC_DOMAIN}}`) |
 
-Porta local da API: `http://localhost:3001` (atrás do Caddy: `https://api.domus.dev`). O SPA local é `https://web.domus.dev` — configure `Cors__Origins__0` com essa origem.
+No Dev Container a API escuta em `PORT=5000` (`https://api.domus.dev` e os caminhos same-origin em `https://web.domus.dev`). O SPA é `https://web.domus.dev`.
+
+### Console Logto (Traditional Web App)
+
+Crie um aplicativo **Traditional Web** (não SPA) por ambiente, como no [tutorial MVC](https://docs.logto.io/pt-BR/quick-starts/dotnet-core/mvc). Redirect URIs na origem do **front**:
+
+| Ambiente | Redirect URI | Post sign-out redirect URI |
+| --- | --- | --- |
+| Local | `https://web.domus.dev/Callback` | `https://web.domus.dev/SignedOutCallback` |
+| Railway | `https://<domínio-público-do-front>/Callback` | `https://<domínio-público-do-front>/SignedOutCallback` |
+
+`api.domus.dev` continua para Swagger e Bearer direto. O Caddy do front encaminha `/Callback`, `/SignedOutCallback`, `/auth/*` e `/api/*` para esta API.
 
 O Railway CLI vem no Dev Container. Secrets de serviço (M2M, audience, `DATABASE_URL` de preprod/prod) ficam no Railway — não no `.env` versionado. Depois de `railway login` e `railway link` neste repositório:
 
@@ -117,13 +131,16 @@ Health checks **não** usam o envelope de produto.
 | ------- | --------------- | ---------- | --------------------------------------------------------------------------------------------------- |
 | `GET`   | `/health/live`  | não        | `200` se o processo está vivo                                                                       |
 | `GET`   | `/health/ready` | não        | `200` se o Postgres está alcançável; caso contrário não-sucesso                                     |
-| `GET`   | `/me`           | Bearer JWT | `401` / `403` + `not_provisioned` / `200` + envelope com perfil, settings e houses                  |
-| `POST`  | `/me`           | Bearer JWT | `201` + envelope (defaults) / `409` + `already_exists` / `401`                                      |
-| `PATCH` | `/me`           | Bearer JWT | atualiza `full_name` (opcional; null/"" limpa)                                                      |
-| `PATCH` | `/me/settings`  | Bearer JWT | atualiza `theme` e/ou `notifications` (merge parcial); `400` + `validation_error` se theme inválido |
-| `GET`   | `/houses`       | Bearer JWT | `401` / `403` + `not_provisioned` / `200` + envelope com as casas do caller (lista pode ser vazia)  |
-| `GET`   | `/houses/{id}`  | Bearer JWT | `401` / `403` + `not_provisioned` / `200` + envelope da casa / `404` + `not_found` se não for membro |
-| `POST`  | `/houses`       | Bearer JWT | `201` + envelope da casa (`role=admin`) / `400` + `validation_error` / `401` / `403` + `not_provisioned` |
+| `GET`   | `/auth/login`   | não        | Challenge OIDC (redirect para o Logto); `returnUrl` relativo (`/` ou `/dashboard`)                  |
+| `GET`   | `/auth/logout`  | não        | Sign-out OIDC + cookie; `returnUrl` relativo                                                        |
+| `GET`   | `/auth/session` | cookie opcional | `{ authenticated, picture, name }` (sem envelope); anônimo → `authenticated: false`            |
+| `GET`   | `/users/me`     | cookie ou Bearer | `401` / `403` + `not_provisioned` / `200` + envelope com perfil, settings e houses            |
+| `POST`  | `/users/me`     | cookie ou Bearer | `201` + envelope (defaults) / `409` + `already_exists` / `401`                                 |
+| `PATCH` | `/users/me`     | cookie ou Bearer | atualiza `full_name` (opcional; null/"" limpa)                                                 |
+| `PATCH` | `/users/me/settings` | cookie ou Bearer | atualiza `theme` e/ou `notifications` (merge parcial); `400` + `validation_error` se theme inválido |
+| `GET`   | `/houses`       | cookie ou Bearer | `401` / `403` + `not_provisioned` / `200` + envelope com as casas do caller (lista pode ser vazia) |
+| `GET`   | `/houses/{id}`  | cookie ou Bearer | `401` / `403` + `not_provisioned` / `200` + envelope da casa / `404` + `not_found` se não for membro |
+| `POST`  | `/houses`       | cookie ou Bearer | `201` + envelope da casa (`role=admin`) / `400` + `validation_error` / `401` / `403` + `not_provisioned` |
 
 `GET /me` nunca provisiona. `POST /me` ignora body — `identity_id` vem só do token. Settings default no provisionamento: `theme=system`, notificações `daily_tasks` / `expenses` / `family_chat` = `true`.
 
@@ -154,8 +171,12 @@ railway variable set \
   ASPNETCORE_ENVIRONMENT=Production \
   Authentication__Authority=https://logto-auth-preprod.up.railway.app/oidc \
   Authentication__Audience=<seu-api-resource> \
+  Logto__Endpoint=https://logto-auth-preprod.up.railway.app/ \
+  Logto__AppId=<traditional-web-app-id> \
   Cors__Origins__0='https://${{domus-front.RAILWAY_PUBLIC_DOMAIN}}' \
   --service Domus.Api
+
+printf '%s' "$LOGTO_APP_SECRET" | railway variable set Logto__AppSecret --stdin --service Domus.Api
 
 # DATABASE_URL privada do Postgres (ajuste o nome do serviço se for outro)
 railway variable set DATABASE_URL='${{Postgres.DATABASE_URL}}' --service Domus.Api
@@ -172,7 +193,10 @@ Alternativa no dashboard: New Service → GitHub `DanRantino/domus-back` → o `
 | --------------------------- | ------------------------------------------------------------------------------------------------- |
 | `ASPNETCORE_ENVIRONMENT`    | `Production`                                                                                      |
 | `Authentication__Authority` | Issuer Logto (ex. `https://logto-auth-preprod.up.railway.app/oidc`)                               |
-| `Authentication__Audience`  | API resource / `aud` (igual ao front)                                                             |
+| `Authentication__Audience`  | API resource / `aud`                                                                              |
+| `Logto__Endpoint`           | Tenant Logto **com barra final** (ex. `https://logto-auth-preprod.up.railway.app/`)               |
+| `Logto__AppId`              | App ID do Traditional Web App                                                                     |
+| `Logto__AppSecret`          | App secret do Traditional Web App (stdin; não no bundle do front)                                 |
 | `DATABASE_URL`              | Referência privada `${{Postgres.DATABASE_URL}}` (não use a URL pública do TCP proxy)              |
 | `Cors__Origins__0`          | Origem **pública** do SPA: `https://${{domus-front.RAILWAY_PUBLIC_DOMAIN}}` (não use DNS interno) |
 
@@ -183,10 +207,11 @@ Não defina `ASPNETCORE_URLS=http://localhost:3001` no Railway. A app lê `PORT`
 ```bash
 curl -s https://<api-domain>/health/live
 curl -s https://<api-domain>/health/ready
-curl -s -o /dev/null -w '%{http_code}\n' https://<api-domain>/me   # esperado: 401
+curl -s -o /dev/null -w '%{http_code}\n' https://<api-domain>/users/me   # esperado: 401
+curl -s https://<api-domain>/auth/session   # esperado: {"authenticated":false,...}
 ```
 
-No front, `VITE_DOMUS_API_BASE_URL` deve ser a URL **pública** da API (`https://${{domus-back.RAILWAY_PUBLIC_DOMAIN}}`). O browser não alcança `*.railway.internal`.
+No front, `VITE_DOMUS_API_BASE_URL=/api` (same-origin). O Caddy do SPA encaminha `/api/*` para a API na rede privada (`DOMUS_API_UPSTREAM`). O browser não alcança `*.railway.internal`.
 
 ## Follow-up no frontend
 
