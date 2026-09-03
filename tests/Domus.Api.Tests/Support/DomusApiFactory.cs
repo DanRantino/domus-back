@@ -31,6 +31,9 @@ public sealed class DomusApiFactory : WebApplicationFactory<Program>
         builder.UseEnvironment("Development");
         builder.UseSetting("Authentication:Authority", "https://logto.test/oidc");
         builder.UseSetting("Authentication:Audience", "https://api.domus.test");
+        builder.UseSetting("Logto:Endpoint", "https://logto.test/");
+        builder.UseSetting("Logto:AppId", "test-app");
+        builder.UseSetting("Logto:AppSecret", "test-secret");
         builder.UseSetting("ConnectionStrings:Database", "Host=localhost;Database=unused;Username=u;Password=p");
 
         builder.ConfigureTestServices(services =>
