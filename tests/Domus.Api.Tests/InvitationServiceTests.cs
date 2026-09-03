@@ -117,6 +117,55 @@ public sealed class InvitationServiceTests
     }
 
     [Fact]
+    public async Task Create_ExpiredPending_AllowsReplacement()
+    {
+        var fixture = CreateFixture();
+        fixture.Store.Items.Add(new HouseInvitation
+        {
+            Id = Guid.NewGuid(),
+            HouseId = HouseId,
+            InvitedByUserId = AdminId,
+            Email = "guest@example.com",
+            Role = HouseRoles.Member,
+            TokenHash = InvitationTokens.Hash("old-token"),
+            Status = HouseInvitationStatuses.Pending,
+            ExpiresAt = Now.AddDays(-1),
+            CreatedAt = Now.AddDays(-8),
+        });
+
+        var result = await fixture.Service.CreateAsync(
+            AdminId,
+            "Ada",
+            HouseId,
+            "guest@example.com",
+            role: null,
+            CancellationToken.None);
+
+        Assert.True(result.IsCreated);
+        Assert.Equal(2, fixture.Store.Items.Count);
+        Assert.Equal(HouseInvitationStatuses.Expired, fixture.Store.Items[0].Status);
+        Assert.Equal(HouseInvitationStatuses.Pending, fixture.Store.Items[1].Status);
+    }
+
+    [Fact]
+    public async Task Create_UniqueViolation_IsConflict()
+    {
+        var fixture = CreateFixture();
+        fixture.Store.UniqueViolationOnSave = true;
+
+        var result = await fixture.Service.CreateAsync(
+            AdminId,
+            "Ada",
+            HouseId,
+            "guest@example.com",
+            role: null,
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("conflict", result.Error!.Code);
+    }
+
+    [Fact]
     public async Task Create_MailerFailure_LeavesPendingInvitation()
     {
         var fixture = CreateFixture();
@@ -374,6 +423,8 @@ public sealed class InvitationServiceTests
     {
         public List<HouseInvitation> Items { get; } = [];
 
+        public bool UniqueViolationOnSave { get; set; }
+
         public Task<HouseInvitation?> FindByIdAsync(
             Guid houseId,
             Guid invitationId,
@@ -415,6 +466,22 @@ public sealed class InvitationServiceTests
                 && i.Status == HouseInvitationStatuses.Pending
                 && i.ExpiresAt > now));
 
+        public Task ExpireOverduePendingAsync(
+            Guid houseId,
+            DateTimeOffset now,
+            CancellationToken cancellationToken)
+        {
+            foreach (var invitation in Items.Where(i =>
+                i.HouseId == houseId
+                && i.Status == HouseInvitationStatuses.Pending
+                && i.ExpiresAt <= now))
+            {
+                invitation.Status = HouseInvitationStatuses.Expired;
+            }
+
+            return Task.CompletedTask;
+        }
+
         public Task AddAsync(HouseInvitation invitation, CancellationToken cancellationToken)
         {
             invitation.House = new House { Id = invitation.HouseId, Name = "Casa Centro" };
@@ -423,6 +490,10 @@ public sealed class InvitationServiceTests
         }
 
         public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task<bool> SaveChangesIgnoringUniqueViolationAsync(
+            CancellationToken cancellationToken) =>
+            Task.FromResult(!UniqueViolationOnSave);
     }
 
     private sealed class FakeMembershipReader : IHouseMembershipReader

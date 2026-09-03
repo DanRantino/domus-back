@@ -134,6 +134,11 @@ if (!isSeed)
         options.Endpoint = logtoEndpoint;
         options.AppId = logtoAppId;
         options.AppSecret = logtoAppSecret;
+        options.GetClaimsFromUserInfoEndpoint = true;
+        if (!options.Scopes.Contains(LogtoParameters.Scopes.Email))
+        {
+            options.Scopes.Add(LogtoParameters.Scopes.Email);
+        }
         // Cookie BFF authenticates the SPA from the session cookie, not a resource
         // access token. Setting Resource makes the Logto SDK reject the principal
         // when access_token.resource is missing, which loops /dashboard ↔ /oidc.
@@ -204,6 +209,13 @@ if (!isSeed)
     builder.Services.AddScoped<IdentityEmailResolver>();
     builder.Services.AddScoped<LoggingInvitationMailer>();
     builder.Services.AddHttpClient<ResendInvitationMailer>();
+    if (!builder.Environment.IsDevelopment()
+        && string.IsNullOrWhiteSpace(builder.Configuration["Resend:ApiKey"]))
+    {
+        throw new InvalidOperationException(
+            "Missing required configuration: Resend:ApiKey (env Resend__ApiKey).");
+    }
+
     builder.Services.AddScoped<IInvitationMailer>(sp =>
     {
         var apiKey = sp.GetRequiredService<IOptions<ResendOptions>>().Value.ApiKey;

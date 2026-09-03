@@ -9,10 +9,8 @@ public sealed class LoggingInvitationMailer(
     public Task<bool> SendAsync(InvitationEmail email, CancellationToken cancellationToken)
     {
         logger.LogInformation(
-            "Invitation email skipped (no Resend API key). To={To} House={House} Token={Token}",
-            email.To,
-            email.HouseName,
-            email.Token);
+            "Invitation email skipped (no Resend API key). House={House}",
+            email.HouseName);
         return Task.FromResult(true);
     }
 }

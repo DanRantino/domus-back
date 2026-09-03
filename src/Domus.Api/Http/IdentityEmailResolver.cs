@@ -1,5 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
+using Logto.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
 
 namespace Domus.Api.Http;
@@ -18,13 +20,7 @@ public sealed class IdentityEmailResolver(
             return fromClaims;
         }
 
-        var authorization = context.Request.Headers.Authorization.ToString();
-        if (!authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        var accessToken = authorization["Bearer ".Length..].Trim();
+        var accessToken = await ResolveAccessTokenAsync(context);
         if (string.IsNullOrWhiteSpace(accessToken))
         {
             return null;
@@ -62,6 +58,24 @@ public sealed class IdentityEmailResolver(
         {
             return null;
         }
+    }
+
+    private static async Task<string?> ResolveAccessTokenAsync(HttpContext context)
+    {
+        var authorization = context.Request.Headers.Authorization.ToString();
+        if (authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
+            var bearer = authorization["Bearer ".Length..].Trim();
+            if (!string.IsNullOrWhiteSpace(bearer))
+            {
+                return bearer;
+            }
+        }
+
+        var cookieToken = await context.GetTokenAsync(
+            LogtoDefaults.CookieScheme,
+            "access_token");
+        return string.IsNullOrWhiteSpace(cookieToken) ? null : cookieToken;
     }
 }
 

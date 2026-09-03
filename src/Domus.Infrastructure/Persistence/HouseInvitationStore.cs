@@ -72,6 +72,32 @@ public sealed class HouseInvitationStore(DomusDbContext db) : IHouseInvitationSt
         return pending.Count(expiresAt => expiresAt > now);
     }
 
+    public async Task ExpireOverduePendingAsync(
+        Guid houseId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var pending = await db.HouseInvitations
+            .Where(i =>
+                i.HouseId == houseId
+                && i.Status == HouseInvitationStatuses.Pending)
+            .ToListAsync(cancellationToken);
+
+        var overdue = pending.Where(i => i.ExpiresAt <= now).ToList();
+
+        if (overdue.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var invitation in overdue)
+        {
+            invitation.Status = HouseInvitationStatuses.Expired;
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
     public Task AddAsync(HouseInvitation invitation, CancellationToken cancellationToken)
     {
         db.HouseInvitations.Add(invitation);
@@ -80,4 +106,18 @@ public sealed class HouseInvitationStore(DomusDbContext db) : IHouseInvitationSt
 
     public Task SaveChangesAsync(CancellationToken cancellationToken) =>
         db.SaveChangesAsync(cancellationToken);
+
+    public async Task<bool> SaveChangesIgnoringUniqueViolationAsync(
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+        catch (DbUpdateException)
+        {
+            return false;
+        }
+    }
 }

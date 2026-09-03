@@ -47,6 +47,8 @@ public sealed class InvitationService(
         }
 
         var now = time.GetUtcNow();
+        await invitations.ExpireOverduePendingAsync(houseId, now, cancellationToken);
+
         var pendingCount = await invitations.CountPendingByHouseIdAsync(
             houseId,
             now,
@@ -84,7 +86,12 @@ public sealed class InvitationService(
         };
 
         await invitations.AddAsync(invitation, cancellationToken);
-        await invitations.SaveChangesAsync(cancellationToken);
+        if (!await invitations.SaveChangesIgnoringUniqueViolationAsync(cancellationToken))
+        {
+            return AppResult<HouseInvitationSummary>.Failure(
+                ErrorCodes.Conflict,
+                "Invitation already pending");
+        }
 
         var emailSent = await mailer.SendAsync(
             new InvitationEmail(
