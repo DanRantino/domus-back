@@ -13,6 +13,7 @@ public sealed class TestAuthHandler(
 {
     public const string SchemeName = "Test";
     public const string SubHeader = "X-Test-Sub";
+    public const string EmailHeader = "X-Test-Email";
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
@@ -27,7 +28,13 @@ public sealed class TestAuthHandler(
             return Task.FromResult(AuthenticateResult.Fail("Missing test subject."));
         }
 
-        var claims = new[] { new Claim("sub", sub) };
+        var claims = new List<Claim> { new("sub", sub) };
+        var email = Request.Headers[EmailHeader].FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(email))
+        {
+            claims.Add(new Claim("email", email));
+        }
+
         var identity = new ClaimsIdentity(claims, SchemeName);
         var principal = new ClaimsPrincipal(identity);
         var ticket = new AuthenticationTicket(principal, SchemeName);

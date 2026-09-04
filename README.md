@@ -42,6 +42,9 @@ Copie [`.env.example`](.env.example) para `.env` e preencha:
 | `Logto__AppSecret`                              | App secret do Traditional Web App (só na API, nunca no front)             |
 | `DATABASE_URL` ou `ConnectionStrings__Database` | Postgres Railway                                                          |
 | `Cors__Origins__0`                              | Origem **pública** do SPA (local: `https://web.domus.dev`; Railway: `https://${{domus-front.RAILWAY_PUBLIC_DOMAIN}}`) |
+| `Resend__ApiKey`                                | API key do Resend para e-mail de convite. Vazio em Development só registra o e-mail no log |
+| `Resend__From`                                  | Remetente verificado no Resend (`Nome <email@dominio>`)                   |
+| `Invitations__FrontendOrigin`                   | Origem pública do SPA usada no link do convite (`https://web.domus.dev`) |
 
 No Dev Container a API escuta em `PORT=5000` (`https://api.domus.dev` e os caminhos same-origin em `https://web.domus.dev`). O SPA é `https://web.domus.dev`.
 
@@ -141,6 +144,12 @@ Health checks **não** usam o envelope de produto.
 | `GET`   | `/houses`       | cookie ou Bearer | `401` / `403` + `not_provisioned` / `200` + envelope com as casas do caller (lista pode ser vazia) |
 | `GET`   | `/houses/{id}`  | cookie ou Bearer | `401` / `403` + `not_provisioned` / `200` + envelope da casa / `404` + `not_found` se não for membro |
 | `POST`  | `/houses`       | cookie ou Bearer | `201` + envelope da casa (`role=admin`) / `400` + `validation_error` / `401` / `403` + `not_provisioned` |
+| `POST`  | `/houses/{id}/invitations` | cookie ou Bearer | admin: `201` convite pendente / `403` / `409` duplicado / `400` role ou e-mail inválido |
+| `GET`   | `/houses/{id}/invitations` | cookie ou Bearer | admin: lista pendentes da casa |
+| `DELETE`| `/houses/{id}/invitations/{invitationId}` | cookie ou Bearer | admin: revoga pendente |
+| `POST`  | `/houses/{id}/invitations/{invitationId}/resend` | cookie ou Bearer | admin: rotaciona token e reenvia e-mail |
+| `GET`   | `/invitations/preview` | não | `200` + `house_name` / `404` token inválido; não expõe o e-mail do convidado |
+| `POST`  | `/invitations/accept` | cookie ou Bearer | `200` cria membership se o e-mail do IdP coincidir / `403` / `404` / `409` já membro |
 
 `GET /me` nunca provisiona. `POST /me` ignora body — `identity_id` vem só do token. Settings default no provisionamento: `theme=system`, notificações `daily_tasks` / `expenses` / `family_chat` = `true`.
 
