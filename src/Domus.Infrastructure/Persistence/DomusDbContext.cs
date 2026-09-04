@@ -1,4 +1,5 @@
 using Domus.Domain.Houses;
+using Domus.Domain.Tasks;
 using Domus.Domain.Users;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,6 +16,8 @@ public sealed class DomusDbContext(
     public DbSet<HouseMembership> HouseMemberships => Set<HouseMembership>();
 
     public DbSet<HouseInvitation> HouseInvitations => Set<HouseInvitation>();
+
+    public DbSet<HouseTask> HouseTasks => Set<HouseTask>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
