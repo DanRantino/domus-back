@@ -16,6 +16,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Domus.Api.Configuration;
+using Domus.Api.GraphQL;
 using Domus.Infrastructure.DevelopmentSeed;
 using Domus.Infrastructure.Identity;
 
@@ -194,6 +195,10 @@ if (!isSeed)
         });
 
     builder.Services.AddAuthorization();
+    builder.Services.AddHttpContextAccessor();
+    builder.Services
+        .AddGraphQLServer()
+        .AddQueryType<Query>();
     builder.Services.AddDomusApplication();
     builder.Services.AddDomusInfrastructure(connectionString);
 
@@ -305,6 +310,12 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 }).AllowAnonymous();
 
 app.MapControllers();
+app.MapGraphQL("/graphql")
+    .RequireAuthorization()
+    .WithOptions(options =>
+    {
+        options.Tool.Enable = app.Environment.IsDevelopment();
+    });
 
 app.Run();
 
