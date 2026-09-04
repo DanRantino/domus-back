@@ -4,7 +4,8 @@ public sealed class AppSeed(
     UserSeeder userSeederIdentity,
     UserSeederDB userSeederDB,
     HouseSeederDB houseSeederDB,
-    HouseMembershipSeederDB houseMembershipSeederDB)
+    HouseMembershipSeederDB houseMembershipSeederDB,
+    HouseTaskSeederDB houseTaskSeederDB)
 {
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
@@ -16,5 +17,7 @@ public sealed class AppSeed(
         Console.WriteLine($"Houses created on DB: {string.Join(", ", houses.Select(h => h.Name))}");
         await houseMembershipSeederDB.RunAsync(houses, usersDB, cancellationToken);
         Console.WriteLine("House memberships seeded.");
+        await houseTaskSeederDB.RunAsync(houses, usersDB, cancellationToken);
+        Console.WriteLine("House tasks seeded.");
     }
 }

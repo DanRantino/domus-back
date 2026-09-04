@@ -29,6 +29,12 @@ public sealed class DevelopmentSeedTests : IAsyncLifetime
         Assert.Equal(4, first.Users.Count);
         Assert.Equal(2, first.Houses.Count);
         Assert.Equal(5, first.Memberships.Count);
+        Assert.Equal(8, first.Tasks.Count);
+        Assert.Contains(first.Tasks, task => task.Title == "Comprar ração" && task.Status == "pending");
+        Assert.Contains(first.Tasks, task => task.Title == "Trocar roupa de cama" && task.Status == "completed");
+        Assert.Contains(first.Tasks, task => task.Title == "Limpar a cozinha" && task.AssigneeUserId is null);
+        Assert.Contains(first.Tasks, task => task.Title == "Revisar contas");
+        Assert.Contains(first.Tasks, task => task.Title == "Organizar documentos" && task.Status == "completed");
 
         await SeedDatabaseAsync(users);
         var second = await CaptureStateAsync();
@@ -36,6 +42,7 @@ public sealed class DevelopmentSeedTests : IAsyncLifetime
         Assert.Equal(first.Users, second.Users);
         Assert.Equal(first.Houses, second.Houses);
         Assert.Equal(first.Memberships, second.Memberships);
+        Assert.Equal(first.Tasks, second.Tasks);
     }
 
     private static IReadOnlyList<SeededUser> CreateSeededUsers() =>
@@ -54,6 +61,7 @@ public sealed class DevelopmentSeedTests : IAsyncLifetime
         await new UserSeederDB(db).RunAsync(users);
         var houses = await new HouseSeederDB(db).RunAsync();
         await new HouseMembershipSeederDB(db).RunAsync(houses, users);
+        await new HouseTaskSeederDB(db).RunAsync(houses, users);
     }
 
     private async Task<SeedState> CaptureStateAsync()
@@ -83,7 +91,19 @@ public sealed class DevelopmentSeedTests : IAsyncLifetime
                 membership.Role))
             .ToListAsync();
 
-        return new SeedState(users, houses, memberships);
+        var tasks = await db.HouseTasks
+            .AsNoTracking()
+            .OrderBy(task => task.HouseId)
+            .ThenBy(task => task.Title)
+            .Select(task => new TaskRow(
+                task.HouseId,
+                task.Title,
+                task.Status,
+                task.AssigneeUserId,
+                task.CreatedByUserId))
+            .ToListAsync();
+
+        return new SeedState(users, houses, memberships, tasks);
     }
 
     private sealed record UserRow(Guid Id, string IdentityId, string? FullName);
@@ -92,8 +112,16 @@ public sealed class DevelopmentSeedTests : IAsyncLifetime
 
     private sealed record MembershipRow(Guid HouseId, Guid UserId, string Role);
 
+    private sealed record TaskRow(
+        Guid HouseId,
+        string Title,
+        string Status,
+        Guid? AssigneeUserId,
+        Guid CreatedByUserId);
+
     private sealed record SeedState(
         IReadOnlyList<UserRow> Users,
         IReadOnlyList<HouseRow> Houses,
-        IReadOnlyList<MembershipRow> Memberships);
+        IReadOnlyList<MembershipRow> Memberships,
+        IReadOnlyList<TaskRow> Tasks);
 }

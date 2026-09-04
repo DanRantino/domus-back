@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
 using Domus.Domain.Houses;
+using Domus.Domain.Tasks;
 using Domus.Domain.Users;
 using Domus.Infrastructure.Persistence;
 using Domus.Application.Houses;
@@ -33,7 +34,8 @@ internal static class EndpointTestData
 
     public static async Task<User> SeedUserAsync(
         this DomusApiFactory factory,
-        string identityId)
+        string identityId,
+        string? fullName = null)
     {
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<DomusDbContext>();
@@ -41,7 +43,7 @@ internal static class EndpointTestData
         var user = new User(
             Guid.NewGuid(),
             identityId,
-            null);
+            fullName);
 
         db.Users.Add(user);
         await db.SaveChangesAsync();
@@ -67,6 +69,57 @@ internal static class EndpointTestData
         });
         await db.SaveChangesAsync();
         return house;
+    }
+
+    public static async Task SeedMembershipAsync(
+        this DomusApiFactory factory,
+        Guid userId,
+        Guid houseId,
+        string role)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<DomusDbContext>();
+        db.HouseMemberships.Add(new HouseMembership
+        {
+            UserId = userId,
+            HouseId = houseId,
+            Role = role,
+        });
+        await db.SaveChangesAsync();
+    }
+
+    public static async Task<HouseTask> SeedHouseTaskAsync(
+        this DomusApiFactory factory,
+        Guid houseId,
+        Guid createdByUserId,
+        string title,
+        Guid? assigneeUserId = null,
+        string? description = null,
+        string status = HouseTaskStatuses.Pending,
+        DateTimeOffset? dueAt = null,
+        DateTimeOffset? completedAt = null)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<DomusDbContext>();
+        var now = DateTimeOffset.UtcNow;
+        var task = new HouseTask(
+            Guid.NewGuid(),
+            houseId,
+            title,
+            createdByUserId,
+            now,
+            description,
+            dueAt,
+            assigneeUserId);
+
+        if (status == HouseTaskStatuses.Completed)
+        {
+            task.Complete(completedAt ?? now);
+        }
+
+        db.HouseTasks.Add(task);
+        await db.SaveChangesAsync();
+        return task;
     }
 
     public static int CountUsers(this DomusApiFactory factory)

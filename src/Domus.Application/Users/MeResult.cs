@@ -1,4 +1,5 @@
 using Domus.Application.Houses;
+using Domus.Application.Tasks;
 
 namespace Domus.Application.Users;
 
@@ -9,4 +10,5 @@ public sealed record MeResult(
     bool NotifyExpenses,
     bool NotifyFamilyChat,
     string Theme,
-    IReadOnlyList<HouseMembershipSummary> Houses);
+    IReadOnlyList<HouseMembershipSummary> Houses,
+    IReadOnlyList<HouseTaskSummary> Tasks);

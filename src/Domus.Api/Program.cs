@@ -250,6 +250,7 @@ if (isSeed)
     builder.Services.AddScoped<UserSeederDB>();
     builder.Services.AddScoped<HouseSeederDB>();
     builder.Services.AddScoped<HouseMembershipSeederDB>();
+    builder.Services.AddScoped<HouseTaskSeederDB>();
     builder.Services.AddScoped<AppSeed>();
 }
 

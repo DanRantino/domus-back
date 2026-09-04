@@ -1,4 +1,5 @@
 using Domus.Application.Houses;
+using Domus.Application.Tasks;
 using Domus.Application.Users;
 using Domus.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -23,6 +24,7 @@ public static class DependencyInjection
         services.AddScoped<IHouseWriter>(sp =>
             sp.GetRequiredService<HouseMembershipReader>());
         services.AddScoped<IHouseInvitationStore, HouseInvitationStore>();
+        services.AddScoped<IHouseTaskReader, HouseTaskReader>();
 
         services.AddHealthChecks()
             .AddDbContextCheck<DomusDbContext>("database", tags: ["ready"]);

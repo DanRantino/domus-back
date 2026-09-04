@@ -1,11 +1,13 @@
 using Domus.Application.Common;
 using Domus.Application.Houses;
+using Domus.Application.Tasks;
 using Domus.Domain.Users;
 
 namespace Domus.Application.Users;
 
 public sealed class MeService(
     IHouseMembershipReader membershipReader,
+    IHouseTaskReader taskReader,
     IUserStore userStore)
 {
     public async Task<AppResult<MeResult>> GetAsync(
@@ -18,6 +20,9 @@ public sealed class MeService(
         CancellationToken cancellationToken)
     {
         var houses = await membershipReader.ListByUserIdAsync(userId, cancellationToken);
+        var tasks = await taskReader.ListSanctuaryByHouseIdsAsync(
+            houses.Select(house => house.Id).ToArray(),
+            cancellationToken);
         return AppResult<MeResult>.Success(
             ToResult(
                 userId,
@@ -26,7 +31,8 @@ public sealed class MeService(
                 notifyExpenses,
                 notifyFamilyChat,
                 theme,
-                houses));
+                houses,
+                tasks));
     }
 
     public async Task<AppResult<MeResult>> ProvisionAsync(
@@ -60,6 +66,7 @@ public sealed class MeService(
                 user.NotifyExpenses,
                 user.NotifyFamilyChat,
                 user.Theme,
+                [],
                 []));
     }
 
@@ -70,7 +77,8 @@ public sealed class MeService(
         bool notifyExpenses,
         bool notifyFamilyChat,
         string theme,
-        IReadOnlyList<HouseMembershipSummary> houses) =>
+        IReadOnlyList<HouseMembershipSummary> houses,
+        IReadOnlyList<HouseTaskSummary> tasks) =>
         new(
             userId,
             fullName ?? string.Empty,
@@ -78,5 +86,6 @@ public sealed class MeService(
             notifyExpenses,
             notifyFamilyChat,
             theme,
-            houses);
+            houses,
+            tasks);
 }
