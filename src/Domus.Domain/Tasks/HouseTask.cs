@@ -61,6 +61,11 @@ public sealed class HouseTask
 
     public void Complete(DateTimeOffset now)
     {
+        if (Status == HouseTaskStatuses.Completed)
+        {
+            return;
+        }
+
         Status = HouseTaskStatuses.Completed;
         CompletedAt = now;
         UpdatedAt = now;

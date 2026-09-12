@@ -128,6 +128,44 @@ public sealed class HouseTasksEndpointTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task CompleteTask_OverlappingRequests_ReturnTheSameCompletedAt()
+    {
+        const string identityId = "identity-task-overlap";
+        var user = await _factory.SeedUserAsync(identityId, "Ana");
+        var house = await _factory.SeedHouseWithMembershipAsync(
+            user.Id,
+            "Casa Centro",
+            HouseRoles.Admin);
+        var task = await _factory.SeedHouseTaskAsync(house.Id, user.Id, "Comprar ração");
+        var firstClient = _factory.CreateAuthenticatedClient(identityId);
+        var secondClient = _factory.CreateAuthenticatedClient(identityId);
+
+        var firstResponseTask = firstClient.PostAsync(
+            $"/houses/{house.Id}/tasks/{task.Id}/complete",
+            content: null);
+        var secondResponseTask = secondClient.PostAsync(
+            $"/houses/{house.Id}/tasks/{task.Id}/complete",
+            content: null);
+        var firstResponse = await firstResponseTask;
+        var secondResponse = await secondResponseTask;
+
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, secondResponse.StatusCode);
+        var firstBody = await firstResponse.Content
+            .ReadFromJsonAsync<ApiEnvelope<HouseTaskResponse>>(_jsonOptions);
+        var secondBody = await secondResponse.Content
+            .ReadFromJsonAsync<ApiEnvelope<HouseTaskResponse>>(_jsonOptions);
+        Assert.NotNull(firstBody?.Data?.CompletedAt);
+        Assert.Equal(firstBody.Data.CompletedAt, secondBody?.Data?.CompletedAt);
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<DomusDbContext>();
+        var loaded = await db.HouseTasks.AsNoTracking().SingleAsync(item => item.Id == task.Id);
+        Assert.Equal(HouseTaskStatuses.Completed, loaded.Status);
+        Assert.Equal(firstBody.Data.CompletedAt, loaded.CompletedAt);
+    }
+
+    [Fact]
     public async Task CompleteTask_UnknownTask_Returns404()
     {
         const string identityId = "identity-task-missing";
