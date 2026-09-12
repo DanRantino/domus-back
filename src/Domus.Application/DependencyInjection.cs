@@ -1,4 +1,5 @@
 using Domus.Application.Houses;
+using Domus.Application.Tasks;
 using Domus.Application.Users;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -12,6 +13,7 @@ public static class DependencyInjection
         services.AddScoped<MeService>();
         services.AddScoped<HouseService>();
         services.AddScoped<InvitationService>();
+        services.AddScoped<HouseTaskService>();
         return services;
     }
 }

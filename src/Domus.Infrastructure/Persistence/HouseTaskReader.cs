@@ -40,6 +40,39 @@ public sealed class HouseTaskReader(DomusDbContext db, TimeProvider timeProvider
         var rows = pending
             .Concat(completed.Where(row => row.CompletedAt >= cutoff))
             .ToList();
+
+        return await MapSummaries(rows, cancellationToken);
+    }
+
+    public Task<HouseTask?> FindByIdAsync(
+        Guid houseId,
+        Guid taskId,
+        CancellationToken cancellationToken) =>
+        db.HouseTasks.SingleOrDefaultAsync(
+            task => task.Id == taskId && task.HouseId == houseId,
+            cancellationToken);
+
+    public async Task<HouseTaskSummary?> GetByIdAsync(
+        Guid houseId,
+        Guid taskId,
+        CancellationToken cancellationToken)
+    {
+        var rows = await QueryRows(
+            db.HouseTasks
+                .AsNoTracking()
+                .Where(task => task.Id == taskId && task.HouseId == houseId),
+            cancellationToken);
+        var summaries = await MapSummaries(rows, cancellationToken);
+        return summaries.SingleOrDefault();
+    }
+
+    public Task SaveChangesAsync(CancellationToken cancellationToken) =>
+        db.SaveChangesAsync(cancellationToken);
+
+    private async Task<HouseTaskSummary[]> MapSummaries(
+        IReadOnlyList<TaskRow> rows,
+        CancellationToken cancellationToken)
+    {
         if (rows.Count == 0)
         {
             return [];
