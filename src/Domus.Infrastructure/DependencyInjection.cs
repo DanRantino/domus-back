@@ -4,6 +4,7 @@ using Domus.Application.Users;
 using Domus.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Domus.Infrastructure;
 
@@ -24,6 +25,7 @@ public static class DependencyInjection
         services.AddScoped<IHouseWriter>(sp =>
             sp.GetRequiredService<HouseMembershipReader>());
         services.AddScoped<IHouseInvitationStore, HouseInvitationStore>();
+        services.TryAddSingleton(TimeProvider.System);
         services.AddScoped<IHouseTaskReader, HouseTaskReader>();
 
         services.AddHealthChecks()
