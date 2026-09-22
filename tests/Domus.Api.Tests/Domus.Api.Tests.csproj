@@ -27,4 +27,8 @@
     <ProjectReference Include="..\..\src\Domus.Api\Domus.Api.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

@@ -17,7 +17,7 @@ namespace Domus.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.19")
+                .HasAnnotation("ProductVersion", "10.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -38,6 +38,74 @@ namespace Domus.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("houses", (string)null);
+                });
+
+            modelBuilder.Entity("Domus.Domain.Houses.HouseInvitation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("AcceptedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("accepted_at");
+
+                    b.Property<Guid?>("AcceptedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("accepted_by_user_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)")
+                        .HasColumnName("email");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<Guid>("HouseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("house_id");
+
+                    b.Property<Guid>("InvitedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("invited_by_user_id");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("role");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("token_hash");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("HouseId", "Email")
+                        .IsUnique()
+                        .HasDatabaseName("ix_house_invitations_house_id_email_pending")
+                        .HasFilter("status = 'pending'");
+
+                    b.ToTable("house_invitations", (string)null);
                 });
 
             modelBuilder.Entity("Domus.Domain.Houses.HouseMembership", b =>
@@ -64,6 +132,73 @@ namespace Domus.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("house_memberships", (string)null);
+                });
+
+            modelBuilder.Entity("Domus.Domain.Tasks.HouseTask", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("AssigneeUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("assignee_user_id");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("description");
+
+                    b.Property<DateTimeOffset?>("DueAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("due_at");
+
+                    b.Property<Guid>("HouseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("house_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssigneeUserId", "HouseId");
+
+                    b.HasIndex("AssigneeUserId", "Status");
+
+                    b.HasIndex("CreatedByUserId", "HouseId");
+
+                    b.HasIndex("HouseId", "DueAt");
+
+                    b.HasIndex("HouseId", "Status");
+
+                    b.ToTable("house_tasks", (string)null);
                 });
 
             modelBuilder.Entity("Domus.Domain.Users.User", b =>
@@ -118,6 +253,17 @@ namespace Domus.Infrastructure.Migrations
                     b.ToTable("users", (string)null);
                 });
 
+            modelBuilder.Entity("Domus.Domain.Houses.HouseInvitation", b =>
+                {
+                    b.HasOne("Domus.Domain.Houses.House", "House")
+                        .WithMany()
+                        .HasForeignKey("HouseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("House");
+                });
+
             modelBuilder.Entity("Domus.Domain.Houses.HouseMembership", b =>
                 {
                     b.HasOne("Domus.Domain.Houses.House", "House")
@@ -131,6 +277,32 @@ namespace Domus.Infrastructure.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("House");
+                });
+
+            modelBuilder.Entity("Domus.Domain.Tasks.HouseTask", b =>
+                {
+                    b.HasOne("Domus.Domain.Houses.House", "House")
+                        .WithMany()
+                        .HasForeignKey("HouseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Domus.Domain.Houses.HouseMembership", "AssigneeMembership")
+                        .WithMany()
+                        .HasForeignKey("AssigneeUserId", "HouseId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Domus.Domain.Houses.HouseMembership", "CreatedByMembership")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId", "HouseId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("AssigneeMembership");
+
+                    b.Navigation("CreatedByMembership");
 
                     b.Navigation("House");
                 });

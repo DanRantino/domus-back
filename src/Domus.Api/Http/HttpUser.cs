@@ -15,5 +15,8 @@ public static class HttpUser
         identityId = user.GetIdentityId() ?? string.Empty;
         return !string.IsNullOrWhiteSpace(identityId);
     }
-}
 
+    public static string? GetEmail(this ClaimsPrincipal user) =>
+        user.FindFirstValue("email")
+        ?? user.FindFirstValue(ClaimTypes.Email);
+}

@@ -1,0 +1,19 @@
+---
+description: Branch from nonprod, run CI, wait for human approval
+alwaysApply: true
+---
+
+# Git branching
+
+Create feature branches from `origin/nonprod`, never from `main` or another feature branch.
+
+When starting implementation, if the current branch is `main` or `nonprod`:
+
+1. Fetch `origin`.
+2. Create and check out `feat/...` or `fix/...` from `origin/nonprod`.
+3. Push the branch so CI runs.
+4. Open a draft PR against `nonprod` if one does not exist: `gh pr create --base nonprod --draft`.
+
+Never approve, merge, or enable auto-merge. Wait for CI (tests) to pass; the human reviews and approves afterwards.
+
+PRs into `main` must come from `nonprod`.

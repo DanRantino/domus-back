@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Domus.Api.Contracts.Users;
 using Domus.Api.Http;
 using Domus.Application.Users;
@@ -21,16 +22,53 @@ public sealed class UsersController(MeService meService) : ControllerBase
     public async Task<ActionResult<ApiEnvelope<MeResponse>>> GetMe(
         CancellationToken cancellationToken)
     {
-        if (!User.TryGetIdentityId(out var identityId))
+        if (!CurrentUserContext.TryRequire<MeResponse>(
+            HttpContext,
+            out var currentUser,
+            out var failure))
         {
-            return Unauthorized();
+            return failure;
         }
 
         var result = await meService.GetAsync(
-            identityId,
+            currentUser.Id,
+            currentUser.FullName,
+            currentUser.NotifyDailyTasks,
+            currentUser.NotifyExpenses,
+            currentUser.NotifyFamilyChat,
+            currentUser.Theme,
             cancellationToken);
 
         return EnvelopeResults.ToActionResult(
             result.Map(MeResponse.FromApplication));
+    }
+
+    [HttpPost("me")]
+    [ProducesResponseType(
+        typeof(ApiEnvelope<MeResponse>),
+        StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(
+        typeof(ApiEnvelope<MeResponse>),
+        StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<ApiEnvelope<MeResponse>>> Provision(
+        CancellationToken cancellationToken)
+    {
+        if (!CurrentUserContext.TryRequireIdentity<MeResponse>(
+            HttpContext,
+            out var identityId,
+            out var failure))
+        {
+            return failure;
+        }
+
+        var result = await meService.ProvisionAsync(
+            identityId,
+            HttpContext.User.FindFirstValue("name"),
+            cancellationToken);
+
+        return EnvelopeResults.ToActionResult(
+            result.Map(MeResponse.FromApplication),
+            createdAt: result.IsCreated ? "/users/me" : null);
     }
 }

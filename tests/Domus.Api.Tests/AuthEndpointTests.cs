@@ -74,5 +74,7 @@ public sealed class AuthEndpointTests : IAsyncLifetime
             .Get(LogtoDefaults.AuthenticationScheme);
 
         Assert.True(string.IsNullOrEmpty(options.Resource));
+        Assert.Contains(LogtoParameters.Scopes.Email, options.Scopes);
+        Assert.True(options.GetClaimsFromUserInfoEndpoint);
     }
 }
