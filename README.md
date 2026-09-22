@@ -29,9 +29,43 @@ dotnet ef database update \
 
 ```
 
+## Perfis de ambiente
+
+A aplicação é uma só. O perfil entra por configuração (`ASPNETCORE_ENVIRONMENT` e variáveis de ambiente), sem ramo de código que escolha local ou Railway.
+
+| | Local | Railway Development (`preprod`) | Production (`prod`) |
+| --- | --- | --- | --- |
+| Onde a API roda | máquina / Dev Container | serviço `domus-back` | serviço `domus-back` |
+| Onde ficam os valores | `.env`, copiado de [`.env.example`](.env.example) | variáveis do environment `preprod` | variáveis do environment `prod` |
+| `ASPNETCORE_ENVIRONMENT` | `Development` | `Development` | `Production` |
+| Postgres | Docker Compose deste repo (`postgres:16` em `127.0.0.1:5432`) | `DATABASE_URL` privado daquele environment | `DATABASE_URL` privado daquele environment |
+| Identidades | `https://api.domus.dev`, SPA `https://web.domus.dev`, Logto `https://auth.domus.dev/` | domínios públicos de `domus-back` / `domus-front` e o tenant Logto do `preprod` | domínios e tenant de prod |
+| Resend | key vazia: o convite só vai para o log | mesma regra de Development | `Resend__ApiKey` obrigatória |
+
+Seleção:
+
+- **Local:** `cp .env.example .env`, `docker compose up -d`, `dotnet run --project src/Domus.Api`.
+- **Railway Development:** não há arquivo de secrets. No serviço `domus-back`, environment `preprod`, use os mesmos nomes de variável do `.env.example` com os valores daquele environment.
+- **Production** fica só no environment `prod`. Não copie esses valores para `.env`, `.env.example` ou `appsettings*.json`.
+
+### Postgres local
+
+```bash
+docker compose up -d
+```
+
+| Campo | Valor (do `.env` local) |
+| --- | --- |
+| Imagem | `postgres:16` |
+| Host / porta | `127.0.0.1:5432` |
+| Database / user | `domus` / `domus` |
+| URL | `DATABASE_URL` em [`.env.example`](.env.example) |
+
+Volume: `domus-postgres-data`. Parar: `docker compose down`. Apagar o estado: `docker compose down -v`.
+
 ## Configuração
 
-Copie [`.env.example`](.env.example) para `.env` e preencha:
+O contrato de variáveis é o mesmo nos dois perfis de desenvolvimento. No local, copie [`.env.example`](.env.example) para `.env` (já vem com Postgres, CORS e Logto locais; preencha só os segredos locais). No Railway Development e em Production, defina as mesmas chaves no serviço — não neste repositório.
 
 | Variável                                        | Descrição                                                                 |
 | ----------------------------------------------- | ------------------------------------------------------------------------- |
@@ -40,7 +74,7 @@ Copie [`.env.example`](.env.example) para `.env` e preencha:
 | `Logto__Endpoint`                               | URL do tenant **com barra final** (`https://auth.domus.dev/`). Não use `…/oidc` |
 | `Logto__AppId`                                  | App ID do Traditional Web App no Console Logto                            |
 | `Logto__AppSecret`                              | App secret do Traditional Web App (só na API, nunca no front)             |
-| `DATABASE_URL` ou `ConnectionStrings__Database` | Postgres Railway                                                          |
+| `DATABASE_URL` ou `ConnectionStrings__Database` | Postgres. Local: URL do Compose. Railway: referência privada do environment (`ConnectionStrings__Database` ganha se as duas existirem) |
 | `Cors__Origins__0`                              | Origem **pública** do SPA (local: `https://web.domus.dev`; Railway: `https://${{domus-front.RAILWAY_PUBLIC_DOMAIN}}`) |
 | `Resend__ApiKey`                                | API key do Resend para e-mail de convite. Vazio em Development só registra o e-mail no log |
 | `Resend__From`                                  | Remetente verificado no Resend (`Nome <email@dominio>`)                   |
@@ -55,18 +89,18 @@ Crie um aplicativo **Traditional Web** (não SPA) por ambiente, como no [tutoria
 | Ambiente | Redirect URI | Post sign-out redirect URI |
 | --- | --- | --- |
 | Local | `https://web.domus.dev/Callback` | `https://web.domus.dev/SignedOutCallback` |
-| Railway | `https://<domínio-público-do-front>/Callback` | `https://<domínio-público-do-front>/SignedOutCallback` |
+| Railway (`preprod` e `prod`) | `https://<domínio-público-do-front>/Callback` | `https://<domínio-público-do-front>/SignedOutCallback` |
 
 `api.domus.dev` continua para Swagger e Bearer direto. O Caddy do front encaminha `/Callback`, `/SignedOutCallback`, `/auth/*` e `/api/*` para esta API.
 
-O Railway CLI vem no Dev Container. Secrets de serviço (M2M, audience, `DATABASE_URL` de preprod/prod) ficam no Railway — não no `.env` versionado. Depois de `railway login` e `railway link` neste repositório:
+O Railway CLI vem no Dev Container. Secrets de serviço (M2M, audience, `DATABASE_URL` de preprod/prod) ficam no Railway — não no `.env` versionado. Depois de `railway login` e `railway link` neste repositório (serviço `domus-back`):
 
 ```bash
-railway variable list --service Domus.Api
-railway variable list --service Domus.Api --kv
+railway variable list --service domus-back --environment preprod
+railway variable list --service domus-back --environment preprod --kv
 
 # Secret sem aparecer no histórico do shell
-printf '%s' "$SECRET" | railway variable set DevelopmentSeed__ClientSecret --stdin --service Domus.Api
+printf '%s' "$SECRET" | railway variable set DevelopmentSeed__ClientSecret --stdin --service domus-back --environment preprod
 ```
 
 ## Executar
@@ -163,32 +197,33 @@ dotnet test Domus.sln
 
 Railpack não suporta .NET: o build usa o [`Dockerfile`](Dockerfile) na raiz.
 
-Logs da aplicação vão para **stdout** (JSON console) e aparecem no log do Railway. Não há stack de logging externo neste marco.
+Logs da aplicação vão para **stdout** e aparecem no log do Railway. Em `Development` (local e `preprod`) o formato é console de uma linha; em `Production` é JSON. Não há stack de logging externo neste marco.
 
 ### Serviço
 
 Configuração de build/deploy: [`railway.toml`](railway.toml) (Dockerfile + healthcheck `/health/live`).
 
-No diretório deste repo (projeto já linkado ao Postgres):
+O perfil **Railway Development** é o environment `preprod` do serviço `domus-back`. Production é o environment `prod` do mesmo serviço: `ASPNETCORE_ENVIRONMENT=Production` e os segredos ficam só lá.
+
+No diretório deste repo (projeto já linkado):
 
 ```bash
-# Criar serviço vazio e fazer deploy do diretório atual
-railway add --service Domus.Api
-railway service Domus.Api   # ou: railway link --service Domus.Api
+railway link --service domus-back --environment preprod
 
 railway variable set \
-  ASPNETCORE_ENVIRONMENT=Production \
-  Authentication__Authority=https://logto-auth-preprod.up.railway.app/oidc \
-  Authentication__Audience=<seu-api-resource> \
-  Logto__Endpoint=https://logto-auth-preprod.up.railway.app/ \
-  Logto__AppId=<traditional-web-app-id> \
+  ASPNETCORE_ENVIRONMENT=Development \
+  Authentication__Authority='<issuer-oidc-do-preprod>' \
+  Authentication__Audience='<api-resource>' \
+  Logto__Endpoint='<endpoint-logto-com-barra-final>' \
+  Logto__AppId='<traditional-web-app-id>' \
   Cors__Origins__0='https://${{domus-front.RAILWAY_PUBLIC_DOMAIN}}' \
-  --service Domus.Api
+  --service domus-back \
+  --environment preprod
 
-printf '%s' "$LOGTO_APP_SECRET" | railway variable set Logto__AppSecret --stdin --service Domus.Api
+printf '%s' "$LOGTO_APP_SECRET" | railway variable set Logto__AppSecret --stdin --service domus-back --environment preprod
 
-# DATABASE_URL privada do Postgres (ajuste o nome do serviço se for outro)
-railway variable set DATABASE_URL='${{Postgres.DATABASE_URL}}' --service Domus.Api
+# DATABASE_URL privada do Postgres deste environment (não use a URL pública do TCP proxy)
+railway variable set DATABASE_URL='${{Postgres.DATABASE_URL}}' --service domus-back --environment preprod
 
 railway domain
 railway up
@@ -196,18 +231,18 @@ railway up
 
 Alternativa no dashboard: New Service → GitHub `DanRantino/domus-back` → o `Dockerfile` / `railway.toml` são detectados automaticamente.
 
-### Variáveis do serviço API
+### Variáveis do serviço `domus-back`
 
-| Variável                    | Valor                                                                                             |
-| --------------------------- | ------------------------------------------------------------------------------------------------- |
-| `ASPNETCORE_ENVIRONMENT`    | `Production`                                                                                      |
-| `Authentication__Authority` | Issuer Logto (ex. `https://logto-auth-preprod.up.railway.app/oidc`)                               |
-| `Authentication__Audience`  | API resource / `aud`                                                                              |
-| `Logto__Endpoint`           | Tenant Logto **com barra final** (ex. `https://logto-auth-preprod.up.railway.app/`)               |
-| `Logto__AppId`              | App ID do Traditional Web App                                                                     |
-| `Logto__AppSecret`          | App secret do Traditional Web App (stdin; não no bundle do front)                                 |
-| `DATABASE_URL`              | Referência privada `${{Postgres.DATABASE_URL}}` (não use a URL pública do TCP proxy)              |
-| `Cors__Origins__0`          | Origem **pública** do SPA: `https://${{domus-front.RAILWAY_PUBLIC_DOMAIN}}` (não use DNS interno) |
+| Variável                    | Railway Development (`preprod`)                                                                   | Production (`prod`)                                      |
+| --------------------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `ASPNETCORE_ENVIRONMENT`    | `Development`                                                                                     | `Production`                                             |
+| `Authentication__Authority` | Issuer OIDC do tenant Logto desse environment                                                     | Issuer do tenant de prod (não copiar para arquivo local) |
+| `Authentication__Audience`  | API resource / `aud`                                                                              | API resource de prod                                     |
+| `Logto__Endpoint`           | Tenant Logto **com barra final**                                                                  | Tenant de prod                                           |
+| `Logto__AppId`              | App ID do Traditional Web App desse environment                                                   | App ID de prod                                           |
+| `Logto__AppSecret`          | App secret (stdin; não no bundle do front nem no git)                                             | App secret de prod                                       |
+| `DATABASE_URL`              | Referência privada `${{Postgres.DATABASE_URL}}` desse environment                                 | Referência privada do `prod`                             |
+| `Cors__Origins__0`          | Origem **pública** do SPA: `https://${{domus-front.RAILWAY_PUBLIC_DOMAIN}}` (não use DNS interno) | Origem pública do front de prod                          |
 
 Não defina `ASPNETCORE_URLS=http://localhost:3001` no Railway. A app lê `PORT` e escuta em `0.0.0.0:$PORT`.
 
