@@ -19,6 +19,22 @@ public sealed class HouseTaskTests
     }
 
     [Fact]
+    public void Complete_AlreadyCompleted_KeepsOriginalTimestamp()
+    {
+        var createdAt = DateTimeOffset.Parse("2026-09-04T12:00:00Z");
+        var completedAt = createdAt.AddHours(2);
+        var retryAt = completedAt.AddMinutes(5);
+        var task = CreatePendingTask(createdAt);
+        task.Complete(completedAt);
+
+        task.Complete(retryAt);
+
+        Assert.Equal(HouseTaskStatuses.Completed, task.Status);
+        Assert.Equal(completedAt, task.CompletedAt);
+        Assert.Equal(completedAt, task.UpdatedAt);
+    }
+
+    [Fact]
     public void Reopen_ResetsStatusAndClearsCompletedAt()
     {
         var createdAt = DateTimeOffset.Parse("2026-09-04T12:00:00Z");

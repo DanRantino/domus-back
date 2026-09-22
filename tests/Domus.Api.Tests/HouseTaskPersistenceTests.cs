@@ -1,4 +1,5 @@
 using Domus.Api.Tests.Support;
+using Domus.Application.Tasks;
 using Domus.Domain.Houses;
 using Domus.Domain.Tasks;
 using Domus.Infrastructure.Persistence;
@@ -51,5 +52,47 @@ public sealed class HouseTaskPersistenceTests : IAsyncLifetime
         Assert.Equal(assignee.Id, loaded.AssigneeUserId);
         Assert.Equal(creator.Id, loaded.CreatedByUserId);
         Assert.Null(loaded.CompletedAt);
+    }
+
+    [Fact]
+    public async Task TryCompletePending_SecondWriter_DoesNotReplaceCompletedAt()
+    {
+        // The pending-status predicate is the concurrency guard. Writers run
+        // one after another: overlapping ExecuteUpdate calls on this shared-cache
+        // SQLite fixture can deadlock and hang the test host.
+        var user = await _factory.SeedUserAsync("identity-task-complete-race");
+        var house = await _factory.SeedHouseWithMembershipAsync(
+            user.Id,
+            "Casa Centro",
+            HouseRoles.Admin);
+        var task = await _factory.SeedHouseTaskAsync(house.Id, user.Id, "Comprar ração");
+        var firstCompletedAt = DateTimeOffset.Parse("2026-09-12T15:00:00Z");
+        var secondCompletedAt = DateTimeOffset.Parse("2026-09-12T15:00:01Z");
+
+        using var firstScope = _factory.Services.CreateScope();
+        using var secondScope = _factory.Services.CreateScope();
+        var first = firstScope.ServiceProvider.GetRequiredService<IHouseTaskReader>();
+        var second = secondScope.ServiceProvider.GetRequiredService<IHouseTaskReader>();
+
+        var firstWon = await first.TryCompletePendingAsync(
+            house.Id,
+            task.Id,
+            firstCompletedAt,
+            CancellationToken.None);
+        var secondWon = await second.TryCompletePendingAsync(
+            house.Id,
+            task.Id,
+            secondCompletedAt,
+            CancellationToken.None);
+
+        Assert.True(firstWon);
+        Assert.False(secondWon);
+
+        using var verifyScope = _factory.Services.CreateScope();
+        var db = verifyScope.ServiceProvider.GetRequiredService<DomusDbContext>();
+        var loaded = await db.HouseTasks.AsNoTracking().SingleAsync(item => item.Id == task.Id);
+        Assert.Equal(HouseTaskStatuses.Completed, loaded.Status);
+        Assert.Equal(firstCompletedAt, loaded.CompletedAt);
+        Assert.Equal(firstCompletedAt, loaded.UpdatedAt);
     }
 }
