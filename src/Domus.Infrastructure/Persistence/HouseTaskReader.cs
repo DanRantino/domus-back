@@ -66,6 +66,27 @@ public sealed class HouseTaskReader(DomusDbContext db, TimeProvider timeProvider
         return summaries.SingleOrDefault();
     }
 
+    public async Task<bool> TryCompletePendingAsync(
+        Guid houseId,
+        Guid taskId,
+        DateTimeOffset completedAt,
+        CancellationToken cancellationToken)
+    {
+        var updated = await db.HouseTasks
+            .Where(task =>
+                task.Id == taskId
+                && task.HouseId == houseId
+                && task.Status == HouseTaskStatuses.Pending)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(task => task.Status, HouseTaskStatuses.Completed)
+                    .SetProperty(task => task.CompletedAt, completedAt)
+                    .SetProperty(task => task.UpdatedAt, completedAt),
+                cancellationToken);
+
+        return updated == 1;
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken) =>
         db.SaveChangesAsync(cancellationToken);
 

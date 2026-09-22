@@ -195,6 +195,24 @@ public sealed class HouseTaskServiceTests
             return Task.FromResult(task is null ? null : ToSummary(task));
         }
 
+        public Task<bool> TryCompletePendingAsync(
+            Guid houseId,
+            Guid taskId,
+            DateTimeOffset completedAt,
+            CancellationToken cancellationToken)
+        {
+            var task = Items.SingleOrDefault(item =>
+                item.Id == taskId && item.HouseId == houseId);
+            if (task is null || task.Status != HouseTaskStatuses.Pending)
+            {
+                return Task.FromResult(false);
+            }
+
+            task.Complete(completedAt);
+            Saved = true;
+            return Task.FromResult(true);
+        }
+
         public Task SaveChangesAsync(CancellationToken cancellationToken)
         {
             Saved = true;

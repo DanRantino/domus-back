@@ -18,5 +18,11 @@ public interface IHouseTaskReader
         Guid taskId,
         CancellationToken cancellationToken);
 
+    Task<bool> TryCompletePendingAsync(
+        Guid houseId,
+        Guid taskId,
+        DateTimeOffset completedAt,
+        CancellationToken cancellationToken);
+
     Task SaveChangesAsync(CancellationToken cancellationToken);
 }

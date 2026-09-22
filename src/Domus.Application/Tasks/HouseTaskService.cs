@@ -1,6 +1,5 @@
 using Domus.Application.Common;
 using Domus.Application.Houses;
-using Domus.Domain.Tasks;
 
 namespace Domus.Application.Tasks;
 
@@ -23,19 +22,11 @@ public sealed class HouseTaskService(
                 "House not found");
         }
 
-        var task = await tasks.FindByIdAsync(houseId, taskId, cancellationToken);
-        if (task is null)
-        {
-            return AppResult<HouseTaskSummary>.Failure(
-                ErrorCodes.NotFound,
-                "Task not found");
-        }
-
-        if (task.Status != HouseTaskStatuses.Completed)
-        {
-            task.Complete(timeProvider.GetUtcNow());
-            await tasks.SaveChangesAsync(cancellationToken);
-        }
+        await tasks.TryCompletePendingAsync(
+            houseId,
+            taskId,
+            timeProvider.GetUtcNow(),
+            cancellationToken);
 
         var summary = await tasks.GetByIdAsync(houseId, taskId, cancellationToken);
         if (summary is null)
