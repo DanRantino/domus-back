@@ -35,7 +35,7 @@ public sealed class DatabaseConnectionTests
     }
 
     [Fact]
-    public void Resolve_LeavesAdoNetConnectionStringUnchanged()
+    public void Resolve_KeepsAdoNetCoordinatesAndAppliesIdlePoolSettings()
     {
         const string ado = "Host=localhost;Database=domus;Username=domus;Password=domus";
         var configuration = Configuration(("ConnectionStrings:Database", ado));
@@ -45,6 +45,18 @@ public sealed class DatabaseConnectionTests
         Assert.Equal("localhost", builder.Host);
         Assert.Equal("domus", builder.Database);
         Assert.Equal("domus", builder.Username);
+        AssertIdlePoolSettings(builder);
+    }
+
+    [Fact]
+    public void Resolve_AppliesIdlePoolSettingsToPostgresUrl()
+    {
+        var configuration = Configuration(
+            ("DATABASE_URL", "postgres://domus:secret@host.docker.internal:5432/domus"));
+
+        var builder = new NpgsqlConnectionStringBuilder(DatabaseConnection.Resolve(configuration));
+
+        AssertIdlePoolSettings(builder);
     }
 
     [Fact]
@@ -58,6 +70,16 @@ public sealed class DatabaseConnectionTests
 
         Assert.Equal("cs-host", builder.Host);
         Assert.Equal("csdb", builder.Database);
+    }
+
+    private static void AssertIdlePoolSettings(NpgsqlConnectionStringBuilder builder)
+    {
+        Assert.True(builder.Pooling);
+        Assert.Equal(0, builder.MinPoolSize);
+        Assert.Equal(10, builder.ConnectionIdleLifetime);
+        Assert.Equal(5, builder.ConnectionPruningInterval);
+        Assert.Equal(0, builder.KeepAlive);
+        Assert.False(builder.TcpKeepAlive);
     }
 
     private static IConfiguration Configuration(params (string Key, string Value)[] pairs) =>
