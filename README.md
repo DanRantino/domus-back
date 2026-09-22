@@ -38,43 +38,45 @@ A aplicação é uma só. O perfil entra por configuração (`ASPNETCORE_ENVIRON
 | Onde a API roda | máquina / Dev Container | serviço `domus-back` | serviço `domus-back` |
 | Onde ficam os valores | `.env`, copiado de [`.env.example`](.env.example) | variáveis do environment `preprod` | variáveis do environment `prod` |
 | `ASPNETCORE_ENVIRONMENT` | `Development` | `Development` | `Production` |
-| Postgres | Docker Compose deste repo (`postgres:16` em `127.0.0.1:5432`) | `DATABASE_URL` privado daquele environment | `DATABASE_URL` privado daquele environment |
-| Identidades | `https://api.domus.dev`, SPA `https://web.domus.dev`, Logto `https://auth.domus.dev/` | domínios públicos de `domus-back` / `domus-front` e o tenant Logto do `preprod` | domínios e tenant de prod |
+| Postgres | Postgres 16 do [`domus-dev`](https://github.com/DanRantino/domus-dev) em `127.0.0.1:5432` | `DATABASE_URL` privado daquele environment | `DATABASE_URL` privado daquele environment |
+| Identidades | `https://api.domus.dev`, SPA `https://web.domus.dev`, Logto Cloud `https://9vhnmt.logto.app/` | domínios públicos de `domus-back` / `domus-front` e o tenant Logto do `preprod` | domínios e tenant de prod |
 | Resend | key vazia: o convite só vai para o log | mesma regra de Development | `Resend__ApiKey` obrigatória |
 
 Seleção:
 
-- **Local:** `cp .env.example .env`, `docker compose up -d`, `dotnet run --project src/Domus.Api`.
+- **Local:** `cp .env.example .env`, Postgres do `domus-dev` (Dev Container ou `docker compose up -d` naquele repositório), `dotnet run --project src/Domus.Api`.
 - **Railway Development:** não há arquivo de secrets. No serviço `domus-back`, environment `preprod`, use os mesmos nomes de variável do `.env.example` com os valores daquele environment.
 - **Production** fica só no environment `prod`. Não copie esses valores para `.env`, `.env.example` ou `appsettings*.json`.
 
 ### Postgres local
 
+O banco local vem do repositório [`domus-dev`](https://github.com/DanRantino/domus-dev). O Dev Container sobe esse Compose ao iniciar. Fora do container, na pasta do `domus-dev`:
+
 ```bash
 docker compose up -d
 ```
 
-| Campo | Valor (do `.env` local) |
+| Campo | Valor (stack `domus-dev`) |
 | --- | --- |
 | Imagem | `postgres:16` |
 | Host / porta | `127.0.0.1:5432` |
-| Database / user | `domus` / `domus` |
-| URL | `DATABASE_URL` em [`.env.example`](.env.example) |
+| Database / user / senha | `domus` / `domus` / `domus` |
+| URL | `postgresql://domus:domus@127.0.0.1:5432/domus` (`DATABASE_URL` em [`.env.example`](.env.example)) |
 
-Volume: `domus-postgres-data`. Parar: `docker compose down`. Apagar o estado: `docker compose down -v`.
+Este repositório não publica um Postgres. Parar o stack ou apagar o volume (`docker compose down`, `docker compose down -v`) é no `domus-dev`.
 
 ## Configuração
 
-O contrato de variáveis é o mesmo nos dois perfis de desenvolvimento. No local, copie [`.env.example`](.env.example) para `.env` (já vem com Postgres, CORS e Logto locais; preencha só os segredos locais). No Railway Development e em Production, defina as mesmas chaves no serviço — não neste repositório.
+O contrato de variáveis é o mesmo nos dois perfis de desenvolvimento. No local, copie [`.env.example`](.env.example) para `.env` (já vem com a URL do Postgres do `domus-dev`, CORS e o tenant Logto Cloud; preencha só AppId, AppSecret e o M2M). No Railway Development e em Production, defina as mesmas chaves no serviço — não neste repositório.
 
 | Variável                                        | Descrição                                                                 |
 | ----------------------------------------------- | ------------------------------------------------------------------------- |
-| `Authentication__Authority`                     | Issuer OIDC Logto (`…/oidc`) — validação JWT Bearer                       |
+| `Authentication__Authority`                     | Issuer OIDC Logto (`…/oidc`) — validação JWT Bearer. Local: `https://9vhnmt.logto.app/oidc` |
 | `Authentication__Audience`                      | API resource / `aud` (JWT + `options.Resource` do SDK)                    |
-| `Logto__Endpoint`                               | URL do tenant **com barra final** (`https://auth.domus.dev/`). Não use `…/oidc` |
-| `Logto__AppId`                                  | App ID do Traditional Web App no Console Logto                            |
-| `Logto__AppSecret`                              | App secret do Traditional Web App (só na API, nunca no front)             |
-| `DATABASE_URL` ou `ConnectionStrings__Database` | Postgres. Local: URL do Compose. Railway: referência privada do environment (`ConnectionStrings__Database` ganha se as duas existirem) |
+| `Logto__Endpoint`                               | URL do tenant **com barra final** (`https://9vhnmt.logto.app/`). Não use `…/oidc` |
+| `Logto__AppId`                                  | App ID do Traditional Web App no Console Logto Cloud (placeholder vazio no exemplo) |
+| `Logto__AppSecret`                              | App secret do Traditional Web App (só na API, nunca no front; placeholder vazio no exemplo) |
+| `DATABASE_URL` ou `ConnectionStrings__Database` | Postgres. Local: URL do `domus-dev`. Railway: referência privada do environment (`ConnectionStrings__Database` ganha se as duas existirem) |
 | `Cors__Origins__0`                              | Origem **pública** do SPA (local: `https://web.domus.dev`; Railway: `https://${{domus-front.RAILWAY_PUBLIC_DOMAIN}}`) |
 | `Resend__ApiKey`                                | API key do Resend para e-mail de convite. Vazio em Development só registra o e-mail no log |
 | `Resend__From`                                  | Remetente verificado no Resend (`Nome <email@dominio>`)                   |
@@ -84,7 +86,7 @@ No Dev Container a API escuta em `PORT=5000` (`https://api.domus.dev` e os camin
 
 ### Console Logto (Traditional Web App)
 
-Crie um aplicativo **Traditional Web** (não SPA) por ambiente, como no [tutorial MVC](https://docs.logto.io/pt-BR/quick-starts/dotnet-core/mvc). Redirect URIs na origem do **front**:
+O perfil local usa o tenant Logto Cloud `https://9vhnmt.logto.app/` (o Logto self-hosted foi removido). Crie ou reutilize o aplicativo **Traditional Web** (não SPA) nesse tenant, como no [tutorial MVC](https://docs.logto.io/pt-BR/quick-starts/dotnet-core/mvc). As redirect URIs locais continuam na origem do **front**, no app Cloud:
 
 | Ambiente | Redirect URI | Post sign-out redirect URI |
 | --- | --- | --- |
@@ -130,7 +132,7 @@ dotnet run --project src/Domus.Api -- --seed
 
 O `--` entrega `--seed` para a aplicação. Além do banco (`DATABASE_URL` ou `ConnectionStrings__Database`), o comando precisa das variáveis M2M em [`.env.example`](.env.example):
 
-- `DevelopmentSeed__LogtoEndpoint`
+- `DevelopmentSeed__LogtoEndpoint` — tenant Logto Cloud (`https://9vhnmt.logto.app/`)
 - `DevelopmentSeed__ManagementApiResource`
 - `DevelopmentSeed__ClientId`
 - `DevelopmentSeed__ClientSecret`
