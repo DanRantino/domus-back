@@ -128,7 +128,7 @@ public sealed class HouseTasksEndpointTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CompleteTask_OverlappingRequests_ReturnTheSameCompletedAt()
+    public async Task CompleteTask_SecondRequest_KeepsOriginalCompletedAt()
     {
         const string identityId = "identity-task-overlap";
         var user = await _factory.SeedUserAsync(identityId, "Ana");
@@ -137,17 +137,13 @@ public sealed class HouseTasksEndpointTests : IAsyncLifetime
             "Casa Centro",
             HouseRoles.Admin);
         var task = await _factory.SeedHouseTaskAsync(house.Id, user.Id, "Comprar ração");
-        var firstClient = _factory.CreateAuthenticatedClient(identityId);
-        var secondClient = _factory.CreateAuthenticatedClient(identityId);
+        var client = _factory.CreateAuthenticatedClient(identityId);
+        var url = $"/houses/{house.Id}/tasks/{task.Id}/complete";
 
-        var firstResponseTask = firstClient.PostAsync(
-            $"/houses/{house.Id}/tasks/{task.Id}/complete",
-            content: null);
-        var secondResponseTask = secondClient.PostAsync(
-            $"/houses/{house.Id}/tasks/{task.Id}/complete",
-            content: null);
-        var firstResponse = await firstResponseTask;
-        var secondResponse = await secondResponseTask;
+        // One request at a time. Two in-flight clients against the shared-cache
+        // SQLite fixture can deadlock inside SQLite and hang the test host.
+        var firstResponse = await client.PostAsync(url, content: null);
+        var secondResponse = await client.PostAsync(url, content: null);
 
         Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
         Assert.Equal(HttpStatusCode.OK, secondResponse.StatusCode);

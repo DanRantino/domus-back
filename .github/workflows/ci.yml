@@ -25,4 +25,4 @@ jobs:
         run: dotnet build Domus.sln --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test Domus.sln --configuration Release --no-build
+        run: dotnet test Domus.sln --configuration Release --no-build --blame-hang-timeout 2min --blame-hang-dump-type none
