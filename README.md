@@ -250,6 +250,8 @@ Alternativa no dashboard: New Service → GitHub `DanRantino/domus-back` → o `
 
 Não defina `ASPNETCORE_URLS=http://localhost:3001` no Railway. A app lê `PORT` e escuta em `0.0.0.0:$PORT`.
 
+Serverless / sleep no Railway é toggle **por serviço e por ambiente** no dashboard (`Settings > Deploy > Serverless`). Não está no `railway.toml` para não forçar sleep em production. Healthchecks (`/health/live`) só correm no deploy, não em loop.
+
 ### Verificação
 
 ```bash

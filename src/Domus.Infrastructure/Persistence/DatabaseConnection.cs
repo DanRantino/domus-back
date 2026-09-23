@@ -24,15 +24,20 @@ public static class DatabaseConnection
 
     public static string Normalize(string connectionString)
     {
-        if (!IsPostgresUrl(connectionString))
-        {
-            return connectionString;
-        }
+        var builder = IsPostgresUrl(connectionString)
+            ? FromPostgresUrl(connectionString)
+            : new NpgsqlConnectionStringBuilder(connectionString);
 
+        ApplyIdlePoolSettings(builder);
+        return builder.ConnectionString;
+    }
+
+    private static NpgsqlConnectionStringBuilder FromPostgresUrl(string connectionString)
+    {
         var uri = new Uri(connectionString);
         var userInfo = uri.UserInfo.Split(':', 2);
 
-        var builder = new NpgsqlConnectionStringBuilder
+        return new NpgsqlConnectionStringBuilder
         {
             Host = uri.Host,
             Port = uri.Port > 0 ? uri.Port : 5432,
@@ -41,8 +46,16 @@ public static class DatabaseConnection
             Database = uri.AbsolutePath.TrimStart('/'),
             SslMode = SslMode.Prefer,
         };
+    }
 
-        return builder.ConnectionString;
+    private static void ApplyIdlePoolSettings(NpgsqlConnectionStringBuilder builder)
+    {
+        builder.Pooling = true;
+        builder.MinPoolSize = 0;
+        builder.ConnectionIdleLifetime = 10;
+        builder.ConnectionPruningInterval = 5;
+        builder.KeepAlive = 0;
+        builder.TcpKeepAlive = false;
     }
 
     private static bool IsPostgresUrl(string value) =>
