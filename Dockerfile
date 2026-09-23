@@ -2,6 +2,7 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
+COPY Directory.Build.props ./
 COPY Domus.sln ./
 COPY src/Domus.Domain/Domus.Domain.csproj src/Domus.Domain/
 COPY src/Domus.Application/Domus.Application.csproj src/Domus.Application/

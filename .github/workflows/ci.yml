@@ -21,6 +21,9 @@ jobs:
       - name: Restore
         run: dotnet restore Domus.sln
 
+      - name: Audit dependencies
+        run: dotnet list Domus.sln package --vulnerable --include-transitive
+
       - name: Build
         run: dotnet build Domus.sln --configuration Release --no-restore
 

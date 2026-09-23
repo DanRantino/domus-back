@@ -9,6 +9,8 @@ Backend .NET da Domus. Monólito modular: **Domain / Application / Infrastructur
 - Dev Container do Domus
 - API resource configurado no Logto
 
+Dependências: [`docs/dependency-security.md`](docs/dependency-security.md).
+
 ## Migrations
 
 As migrations ficam em `src/Domus.Infrastructure/Migrations` e são a fonte de verdade para evolução do schema.
