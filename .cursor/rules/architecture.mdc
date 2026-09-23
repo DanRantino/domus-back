@@ -5,12 +5,8 @@ alwaysApply: true
 
 # Domus API Architecture
 
-The shared product specifications live in the sibling repository:
-
-`../domus-specs`
-
-Product specifications define WHAT Domus should do.
-This repository defines HOW backend behavior is implemented.
+Product direction, when a task needs it, lives in `../domus-web/docs/product/domus-overview.md`.
+This repository defines HOW backend behavior is implemented. The code on the branch you are changing is the behavior. The overview does not imply that every capability exists.
 
 ## Principles
 
@@ -18,8 +14,7 @@ This repository defines HOW backend behavior is implemented.
 - Follow existing project patterns before introducing new ones.
 - Keep HTTP concerns separate from business/domain behavior.
 - Do not introduce architectural patterns unless the current problem requires them.
-- Treat product behavior from the referenced OpenSpec change as authoritative.
-- If the specification leaves an important product decision ambiguous, stop and surface the ambiguity rather than inventing behavior.
+- If a product decision is ambiguous, stop and surface it rather than inventing behavior.
 
 ## Layer boundaries
 
@@ -38,9 +33,6 @@ This repository defines HOW backend behavior is implemented.
 
 ## Context discipline
 
-When working from a shared OpenSpec change:
-
-1. Read only the referenced change and directly referenced specs.
-2. Do not scan unrelated OpenSpec changes.
-3. Inspect only backend code relevant to the current implementation step.
-4. Prefer an existing implementation as the concrete reference when one exists.
+1. Follow the approved Cursor plan and the code it names.
+2. Inspect only backend code relevant to the current step.
+3. Prefer an existing implementation as the concrete reference when one exists.

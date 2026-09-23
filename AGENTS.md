@@ -14,7 +14,7 @@ Owned by **`domus-dev`** (typical sibling checkout):
 - [`../domus-dev/docs/agents/ROLES.md`](../domus-dev/docs/agents/ROLES.md) — Cursor vs Codex roles
 - [`../domus-dev/docs/agents/INDEX.md`](../domus-dev/docs/agents/INDEX.md) — topic index
 
-Open those **only** when the task crosses repo boundaries (front, infra, product). Product OpenSpec (WHAT), when present, is referenced as sibling `../domus-specs` in [`.cursor/rules/architecture.mdc`](.cursor/rules/architecture.mdc); in this workspace prefer `domus-web/openspec` and verify against code.
+Open those **only** when the task crosses repo boundaries (front, infra, product). Product direction, when needed, is [`../domus-web/docs/product/domus-overview.md`](../domus-web/docs/product/domus-overview.md). Implemented behavior is the code.
 
 Frontend entry (contracts / UI callers): [`../domus-web/AGENTS.md`](../domus-web/AGENTS.md).
 
