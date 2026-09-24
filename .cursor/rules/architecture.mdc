@@ -1,6 +1,6 @@
 ---
-description: Core backend architecture conventions for Domus API
-alwaysApply: true
+description: Layer boundaries for Domus API (Api, Application, Domain, Infrastructure). Read before adding a project, service boundary, or persistence abstraction.
+alwaysApply: false
 ---
 
 # Domus API Architecture
