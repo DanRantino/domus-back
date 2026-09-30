@@ -33,6 +33,6 @@ This repository defines HOW backend behavior is implemented. The code on the bra
 
 ## Context discipline
 
-1. Follow the approved Cursor plan and the code it names.
+1. When an approved Cursor plan exists for this task, follow that plan and the code it names. A PR review with no plan reads the diff and the adjacent code only.
 2. Inspect only backend code relevant to the current step.
 3. Prefer an existing implementation as the concrete reference when one exists.
