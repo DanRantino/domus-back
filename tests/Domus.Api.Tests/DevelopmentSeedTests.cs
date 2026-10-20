@@ -1,4 +1,5 @@
 using Domus.Api.Tests.Support;
+using Domus.Domain.Tasks;
 using Domus.Infrastructure.DevelopmentSeed;
 using Domus.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -29,12 +30,15 @@ public sealed class DevelopmentSeedTests : IAsyncLifetime
         Assert.Equal(4, first.Users.Count);
         Assert.Equal(2, first.Houses.Count);
         Assert.Equal(5, first.Memberships.Count);
-        Assert.Equal(8, first.Tasks.Count);
-        Assert.Contains(first.Tasks, task => task.Title == "Comprar ração" && task.Status == "pending");
-        Assert.Contains(first.Tasks, task => task.Title == "Trocar roupa de cama" && task.Status == "completed");
-        Assert.Contains(first.Tasks, task => task.Title == "Limpar a cozinha" && task.AssigneeUserId is null);
-        Assert.Contains(first.Tasks, task => task.Title == "Revisar contas");
-        Assert.Contains(first.Tasks, task => task.Title == "Organizar documentos" && task.Status == "completed");
+        Assert.Equal(25, first.Tasks.Count);
+        AssertEachMemberHasFiveTasks(first);
+
+        await AddOutOfCatalogTaskAsync(first);
+        await RenameUserAsync(first.Users[0].Id, "Nome antigo");
+        await ReassignTaskAsync(
+            first.Houses.Single(house => house.Name == "Casa da Família").Id,
+            "Comprar ração",
+            first.Users.Single(user => user.FullName == "Domus Admin").Id);
 
         await SeedDatabaseAsync(users);
         var second = await CaptureStateAsync();
@@ -53,6 +57,70 @@ public sealed class DevelopmentSeedTests : IAsyncLifetime
                 name: user.name,
                 username: user.username))
             .ToList();
+
+    private static void AssertEachMemberHasFiveTasks(SeedState state)
+    {
+        var familyId = state.Houses.Single(house => house.Name == "Casa da Família").Id;
+        var adminId = state.Houses.Single(house => house.Name == "Casa do Admin").Id;
+        var admin = state.Users.Single(user => user.FullName == "Domus Admin");
+
+        Assert.Equal(20, state.Tasks.Count(task => task.HouseId == familyId));
+        Assert.Equal(5, state.Tasks.Count(task => task.HouseId == adminId));
+        Assert.Contains(state.Tasks, task =>
+            task.HouseId == familyId &&
+            task.Title == "Comprar ração" &&
+            task.Status == "pending");
+        Assert.Contains(state.Tasks, task =>
+            task.HouseId == adminId &&
+            task.Title == "Organizar os documentos" &&
+            task.Status == "completed" &&
+            task.AssigneeUserId == admin.Id);
+
+        foreach (var user in state.Users)
+        {
+            var assigned = state.Tasks
+                .Where(task => task.HouseId == familyId && task.AssigneeUserId == user.Id)
+                .ToList();
+            Assert.Equal(5, assigned.Count);
+            Assert.Equal(1, assigned.Count(task => task.Status == "completed"));
+            Assert.All(assigned, task => Assert.Equal(user.Id, task.CreatedByUserId));
+        }
+    }
+
+    private async Task AddOutOfCatalogTaskAsync(SeedState state)
+    {
+        var houseId = state.Houses.Single(house => house.Name == "Casa da Família").Id;
+        var userId = state.Users[0].Id;
+        var now = DateTimeOffset.UtcNow;
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<DomusDbContext>();
+        db.HouseTasks.Add(new HouseTask(
+            Guid.NewGuid(),
+            houseId,
+            "Tarefa fora do catálogo",
+            userId,
+            now));
+        await db.SaveChangesAsync();
+    }
+
+    private async Task ReassignTaskAsync(Guid houseId, string title, Guid assigneeUserId)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<DomusDbContext>();
+        var task = await db.HouseTasks.SingleAsync(row => row.HouseId == houseId && row.Title == title);
+        task.AssignTo(assigneeUserId, DateTimeOffset.UtcNow);
+        await db.SaveChangesAsync();
+    }
+
+    private async Task RenameUserAsync(Guid userId, string fullName)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<DomusDbContext>();
+        var user = await db.Users.SingleAsync(row => row.Id == userId);
+        user.FullName = fullName;
+        await db.SaveChangesAsync();
+    }
 
     private async Task SeedDatabaseAsync(IReadOnlyList<SeededUser> users)
     {

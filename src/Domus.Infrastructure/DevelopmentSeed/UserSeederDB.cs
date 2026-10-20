@@ -33,6 +33,10 @@ public sealed class UserSeederDB
                 };
                 _dbContext.Users.Add(newUser);
             }
+            else if (!string.Equals(existingUser.FullName, user.name, StringComparison.Ordinal))
+            {
+                existingUser.FullName = user.name;
+            }
         }
 
         await _dbContext.SaveIfChangedAsync(cancellationToken);

@@ -26,8 +26,11 @@ public sealed class HouseTaskSeederDB
 
         var housesByName = houses.ToDictionary(house => house.Name);
         var now = DateTimeOffset.UtcNow;
+        var catalog = SeedHouseTasks.GetTasks();
 
-        foreach (var seedTask in SeedHouseTasks.GetTasks())
+        await RemoveTasksMissingFromCatalogAsync(houses, catalog, cancellationToken);
+
+        foreach (var seedTask in catalog)
         {
             if (!housesByName.TryGetValue(seedTask.HouseName, out var house))
             {
@@ -59,6 +62,11 @@ public sealed class HouseTaskSeederDB
 
             if (existing is not null)
             {
+                if (assigneeUserId is Guid assigneeId && existing.AssigneeUserId != assigneeId)
+                {
+                    existing.AssignTo(assigneeId, now);
+                }
+
                 continue;
             }
 
@@ -88,6 +96,34 @@ public sealed class HouseTaskSeederDB
         }
 
         await _dbContext.SaveIfChangedAsync(cancellationToken);
+    }
+
+    private async Task RemoveTasksMissingFromCatalogAsync(
+        IReadOnlyList<House> houses,
+        IReadOnlyList<SeedHouseTask> catalog,
+        CancellationToken cancellationToken)
+    {
+        var titlesByHouseName = catalog
+            .GroupBy(task => task.HouseName)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Select(task => task.Title).ToHashSet(StringComparer.Ordinal));
+
+        foreach (var house in houses)
+        {
+            titlesByHouseName.TryGetValue(house.Name, out var titles);
+            var existing = await _dbContext.HouseTasks
+                .Where(task => task.HouseId == house.Id)
+                .ToListAsync(cancellationToken);
+
+            foreach (var task in existing)
+            {
+                if (titles is null || !titles.Contains(task.Title))
+                {
+                    _dbContext.HouseTasks.Remove(task);
+                }
+            }
+        }
     }
 
     private async Task<User> ResolveDbUserAsync(
