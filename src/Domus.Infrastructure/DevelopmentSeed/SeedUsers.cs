@@ -12,15 +12,15 @@ public static class SeedUsers
             "Domus_Admin1"),
         new SeedUser(
             "dev2@domus.local",
-            "Domus Member",
+            "Bruno Lima",
             "Domus_Member1"),
         new SeedUser(
             "dev3@domus.local",
-            "Domus Member",
+            "Carla Souza",
             "Domus_Member2"),
         new SeedUser(
             "dev4@domus.local",
-            "Domus Member",
+            "Diego Alves",
             "Domus_Member3"),
     ];
 }
